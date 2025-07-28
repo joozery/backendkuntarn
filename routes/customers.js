@@ -36,12 +36,15 @@ router.get('/', async (req, res) => {
         c.full_name LIKE ? OR 
         c.id_card LIKE ? OR 
         c.nickname LIKE ? OR
+        c.phone1 LIKE ? OR
+        c.phone2 LIKE ? OR
+        c.phone3 LIKE ? OR
         c.guarantor_name LIKE ? OR
         c.guarantor_id_card LIKE ? OR
         c.guarantor_nickname LIKE ?
       )`;
       const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
     
     if (status && status !== 'all') {
@@ -112,14 +115,23 @@ router.post('/', async (req, res) => {
   try {
     const {
       code,
+      title,
       name,
       surname,
       fullName,
-      idCard,
       nickname,
-      phone,
-      email,
+      age,
+      idCard,
       address,
+      moo,
+      road,
+      subdistrict,
+      district,
+      province,
+      phone1,
+      phone2,
+      phone3,
+      email,
       guarantorName,
       guarantorIdCard,
       guarantorNickname,
@@ -132,14 +144,16 @@ router.post('/', async (req, res) => {
     
     const sqlQuery = `
       INSERT INTO customers (
-        code, name, surname, full_name, id_card, nickname, phone, email, address,
+        code, title, name, surname, full_name, nickname, age, id_card, address,
+        moo, road, subdistrict, district, province, phone1, phone2, phone3, email,
         guarantor_name, guarantor_id_card, guarantor_nickname, guarantor_phone, guarantor_address,
         status, branch_id, checker_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
-      code, name, surname, fullName, idCard, nickname, phone, email, address,
+      code, title || 'นาย', name, surname, fullName, nickname, age, idCard, address,
+      moo, road, subdistrict, district, province, phone1, phone2, phone3, email,
       guarantorName, guarantorIdCard, guarantorNickname, guarantorPhone, guarantorAddress,
       status || 'active', branchId, checkerId
     ];
@@ -181,14 +195,23 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const {
       code,
+      title,
       name,
       surname,
       fullName,
-      idCard,
       nickname,
-      phone,
-      email,
+      age,
+      idCard,
       address,
+      moo,
+      road,
+      subdistrict,
+      district,
+      province,
+      phone1,
+      phone2,
+      phone3,
+      email,
       guarantorName,
       guarantorIdCard,
       guarantorNickname,
@@ -201,15 +224,17 @@ router.put('/:id', async (req, res) => {
     
     const sqlQuery = `
       UPDATE customers SET
-        code = ?, name = ?, surname = ?, full_name = ?, id_card = ?, nickname = ?,
-        phone = ?, email = ?, address = ?, guarantor_name = ?, guarantor_id_card = ?,
+        code = ?, title = ?, name = ?, surname = ?, full_name = ?, nickname = ?, age = ?,
+        id_card = ?, address = ?, moo = ?, road = ?, subdistrict = ?, district = ?, province = ?,
+        phone1 = ?, phone2 = ?, phone3 = ?, email = ?, guarantor_name = ?, guarantor_id_card = ?,
         guarantor_nickname = ?, guarantor_phone = ?, guarantor_address = ?,
         status = ?, branch_id = ?, checker_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
     
     const params = [
-      code, name, surname, fullName, idCard, nickname, phone, email, address,
+      code, title, name, surname, fullName, nickname, age, idCard, address,
+      moo, road, subdistrict, district, province, phone1, phone2, phone3, email,
       guarantorName, guarantorIdCard, guarantorNickname, guarantorPhone, guarantorAddress,
       status, branchId, checkerId, id
     ];

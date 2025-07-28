@@ -2,6 +2,17 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../db/db');
 
+// Helper function to safely parse JSON
+function safeJsonParse(jsonString) {
+  if (!jsonString) return null;
+  try {
+    return JSON.parse(jsonString);
+  } catch (e) {
+    console.warn('Failed to parse JSON:', e);
+    return null;
+  }
+}
+
 // Helper function to generate unique contract number
 async function generateUniqueContractNumber() {
   try {
@@ -100,6 +111,7 @@ router.get('/', async (req, res) => {
       SELECT 
         i.id,
         i.contract_number as contractNumber,
+        i.contract_date as contractDate,
         i.customer_id as customerId,
         i.product_id as productId,
         i.product_name as productName,
@@ -109,6 +121,46 @@ router.get('/', async (req, res) => {
         i.installment_period as installmentPeriod,
         i.start_date as startDate,
         i.end_date as endDate,
+        i.branch_id as branchId,
+        i.salesperson_id as salespersonId,
+        i.inspector_id as inspectorId,
+        i.line,
+        i.customer_title as customerTitle,
+        i.customer_age as customerAge,
+        i.customer_moo as customerMoo,
+        i.customer_road as customerRoad,
+        i.customer_subdistrict as customerSubdistrict,
+        i.customer_district as customerDistrict,
+        i.customer_province as customerProvince,
+        i.customer_phone1 as customerPhone1,
+        i.customer_phone2 as customerPhone2,
+        i.customer_phone3 as customerPhone3,
+        i.customer_email as customerEmail,
+        i.guarantor_id as guarantorId,
+        i.guarantor_title as guarantorTitle,
+        i.guarantor_name as guarantorName,
+        i.guarantor_surname as guarantorSurname,
+        i.guarantor_nickname as guarantorNickname,
+        i.guarantor_age as guarantorAge,
+        i.guarantor_id_card as guarantorIdCard,
+        i.guarantor_address as guarantorAddress,
+        i.guarantor_moo as guarantorMoo,
+        i.guarantor_road as guarantorRoad,
+        i.guarantor_subdistrict as guarantorSubdistrict,
+        i.guarantor_district as guarantorDistrict,
+        i.guarantor_province as guarantorProvince,
+        i.guarantor_phone1 as guarantorPhone1,
+        i.guarantor_phone2 as guarantorPhone2,
+        i.guarantor_phone3 as guarantorPhone3,
+        i.guarantor_email as guarantorEmail,
+        i.product_description as productDescription,
+        i.product_category as productCategory,
+        i.product_model as productModel,
+        i.product_serial_number as productSerialNumber,
+        i.down_payment as downPayment,
+        i.monthly_payment as monthlyPayment,
+        i.months,
+        i.collection_date as collectionDate,
         i.status,
         i.created_at as createdAt,
         i.updated_at as updatedAt,
@@ -163,10 +215,58 @@ router.get('/', async (req, res) => {
     
     const results = await query(sqlQuery, params);
     
+    // Build structured objects from individual fields
+    const processedResults = results.map(result => ({
+      ...result,
+      customerDetails: {
+        title: result.customerTitle,
+        age: result.customerAge,
+        moo: result.customerMoo,
+        road: result.customerRoad,
+        subdistrict: result.customerSubdistrict,
+        district: result.customerDistrict,
+        province: result.customerProvince,
+        phone1: result.customerPhone1,
+        phone2: result.customerPhone2,
+        phone3: result.customerPhone3,
+        email: result.customerEmail
+      },
+      guarantorDetails: {
+        id: result.guarantorId,
+        title: result.guarantorTitle,
+        name: result.guarantorName,
+        surname: result.guarantorSurname,
+        nickname: result.guarantorNickname,
+        age: result.guarantorAge,
+        idCard: result.guarantorIdCard,
+        address: result.guarantorAddress,
+        moo: result.guarantorMoo,
+        road: result.guarantorRoad,
+        subdistrict: result.guarantorSubdistrict,
+        district: result.guarantorDistrict,
+        province: result.guarantorProvince,
+        phone1: result.guarantorPhone1,
+        phone2: result.guarantorPhone2,
+        phone3: result.guarantorPhone3,
+        email: result.guarantorEmail
+      },
+      productDetails: {
+        description: result.productDescription,
+        category: result.productCategory,
+        model: result.productModel,
+        serialNumber: result.productSerialNumber
+      },
+      plan: {
+        downPayment: result.downPayment,
+        monthlyPayment: result.monthlyPayment,
+        months: result.months
+      }
+    }));
+    
     res.json({
       success: true,
-      data: results,
-      count: results.length
+      data: processedResults,
+      count: processedResults.length
     });
   } catch (error) {
     console.error('Error in installments GET:', error);
@@ -186,6 +286,7 @@ router.get('/:id', async (req, res) => {
       SELECT 
         i.id,
         i.contract_number as contractNumber,
+        i.contract_date as contractDate,
         i.customer_id as customerId,
         i.product_id as productId,
         i.product_name as productName,
@@ -195,6 +296,46 @@ router.get('/:id', async (req, res) => {
         i.installment_period as installmentPeriod,
         i.start_date as startDate,
         i.end_date as endDate,
+        i.branch_id as branchId,
+        i.salesperson_id as salespersonId,
+        i.inspector_id as inspectorId,
+        i.line,
+        i.customer_title as customerTitle,
+        i.customer_age as customerAge,
+        i.customer_moo as customerMoo,
+        i.customer_road as customerRoad,
+        i.customer_subdistrict as customerSubdistrict,
+        i.customer_district as customerDistrict,
+        i.customer_province as customerProvince,
+        i.customer_phone1 as customerPhone1,
+        i.customer_phone2 as customerPhone2,
+        i.customer_phone3 as customerPhone3,
+        i.customer_email as customerEmail,
+        i.guarantor_id as guarantorId,
+        i.guarantor_title as guarantorTitle,
+        i.guarantor_name as guarantorName,
+        i.guarantor_surname as guarantorSurname,
+        i.guarantor_nickname as guarantorNickname,
+        i.guarantor_age as guarantorAge,
+        i.guarantor_id_card as guarantorIdCard,
+        i.guarantor_address as guarantorAddress,
+        i.guarantor_moo as guarantorMoo,
+        i.guarantor_road as guarantorRoad,
+        i.guarantor_subdistrict as guarantorSubdistrict,
+        i.guarantor_district as guarantorDistrict,
+        i.guarantor_province as guarantorProvince,
+        i.guarantor_phone1 as guarantorPhone1,
+        i.guarantor_phone2 as guarantorPhone2,
+        i.guarantor_phone3 as guarantorPhone3,
+        i.guarantor_email as guarantorEmail,
+        i.product_description as productDescription,
+        i.product_category as productCategory,
+        i.product_model as productModel,
+        i.product_serial_number as productSerialNumber,
+        i.down_payment as downPayment,
+        i.monthly_payment as monthlyPayment,
+        i.months,
+        i.collection_date as collectionDate,
         i.status,
         i.created_at as createdAt,
         i.updated_at as updatedAt,
@@ -225,9 +366,57 @@ router.get('/:id', async (req, res) => {
       });
     }
     
+    // Build structured objects from individual fields
+    const result = {
+      ...results[0],
+      customerDetails: {
+        title: results[0].customerTitle,
+        age: results[0].customerAge,
+        moo: results[0].customerMoo,
+        road: results[0].customerRoad,
+        subdistrict: results[0].customerSubdistrict,
+        district: results[0].customerDistrict,
+        province: results[0].customerProvince,
+        phone1: results[0].customerPhone1,
+        phone2: results[0].customerPhone2,
+        phone3: results[0].customerPhone3,
+        email: results[0].customerEmail
+      },
+      guarantorDetails: {
+        id: results[0].guarantorId,
+        title: results[0].guarantorTitle,
+        name: results[0].guarantorName,
+        surname: results[0].guarantorSurname,
+        nickname: results[0].guarantorNickname,
+        age: results[0].guarantorAge,
+        idCard: results[0].guarantorIdCard,
+        address: results[0].guarantorAddress,
+        moo: results[0].guarantorMoo,
+        road: results[0].guarantorRoad,
+        subdistrict: results[0].guarantorSubdistrict,
+        district: results[0].guarantorDistrict,
+        province: results[0].guarantorProvince,
+        phone1: results[0].guarantorPhone1,
+        phone2: results[0].guarantorPhone2,
+        phone3: results[0].guarantorPhone3,
+        email: results[0].guarantorEmail
+      },
+      productDetails: {
+        description: results[0].productDescription,
+        category: results[0].productCategory,
+        model: results[0].productModel,
+        serialNumber: results[0].productSerialNumber
+      },
+      plan: {
+        downPayment: results[0].downPayment,
+        monthlyPayment: results[0].monthlyPayment,
+        months: results[0].months
+      }
+    };
+    
     res.json({
       success: true,
-      data: results[0]
+      data: result
     });
   } catch (error) {
     console.error('Error in installment GET by ID:', error);
@@ -565,22 +754,79 @@ router.post('/', async (req, res) => {
       }
     }
     
-    // Insert installment record
+    // Insert installment record with all details
     const sqlQuery = `
       INSERT INTO installments (
-        contract_number, customer_id, product_id, product_name, 
+        contract_number, contract_date, customer_id, product_id, product_name, 
         total_amount, installment_amount, remaining_amount, installment_period, 
-        start_date, end_date, branch_id, salesperson_id, status, created_at, updated_at
+        start_date, end_date, branch_id, salesperson_id, inspector_id, line,
+        customer_title, customer_age, customer_moo, customer_road, customer_subdistrict, 
+        customer_district, customer_province, customer_phone1, customer_phone2, customer_phone3, customer_email,
+        guarantor_id, guarantor_title, guarantor_name, guarantor_surname, guarantor_nickname,
+        guarantor_age, guarantor_id_card, guarantor_address, guarantor_moo, guarantor_road,
+        guarantor_subdistrict, guarantor_district, guarantor_province, guarantor_phone1,
+        guarantor_phone2, guarantor_phone3, guarantor_email,
+        product_description, product_category, product_model, product_serial_number,
+        down_payment, monthly_payment, months, collection_date,
+        status, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
     `;
     
     const remainingAmount = totalAmount - (plan?.downPayment || 0);
+    const downPayment = plan?.downPayment || 0;
+    const months = plan?.months || installmentPeriod;
+    
+    // Extract customer details
+    const customerTitle = customerDetails?.title || null;
+    const customerAge = customerDetails?.age || null;
+    const customerMoo = customerDetails?.moo || null;
+    const customerRoad = customerDetails?.road || null;
+    const customerSubdistrict = customerDetails?.subdistrict || null;
+    const customerDistrict = customerDetails?.district || null;
+    const customerProvince = customerDetails?.province || null;
+    const customerPhone1 = customerDetails?.phone1 || null;
+    const customerPhone2 = customerDetails?.phone2 || null;
+    const customerPhone3 = customerDetails?.phone3 || null;
+    const customerEmail = customerDetails?.email || null;
+    
+    // Extract guarantor details
+    const guarantorIdValue = guarantorId || null;
+    const guarantorTitle = guarantorDetails?.title || null;
+    const guarantorName = guarantorDetails?.name || null;
+    const guarantorSurname = guarantorDetails?.surname || null;
+    const guarantorNickname = guarantorDetails?.nickname || null;
+    const guarantorAge = guarantorDetails?.age || null;
+    const guarantorIdCard = guarantorDetails?.idCard || null;
+    const guarantorAddress = guarantorDetails?.address || null;
+    const guarantorMoo = guarantorDetails?.moo || null;
+    const guarantorRoad = guarantorDetails?.road || null;
+    const guarantorSubdistrict = guarantorDetails?.subdistrict || null;
+    const guarantorDistrict = guarantorDetails?.district || null;
+    const guarantorProvince = guarantorDetails?.province || null;
+    const guarantorPhone1 = guarantorDetails?.phone1 || null;
+    const guarantorPhone2 = guarantorDetails?.phone2 || null;
+    const guarantorPhone3 = guarantorDetails?.phone3 || null;
+    const guarantorEmail = guarantorDetails?.email || null;
+    
+    // Extract product details
+    const productDescription = productDetails?.description || null;
+    const productCategory = productDetails?.category || null;
+    const productModel = productDetails?.model || null;
+    const productSerialNumber = productDetails?.serialNumber || null;
     
     const params = [
-      finalContractNumber, customerId, productId, productName, totalAmount,
+      finalContractNumber, contractDate, customerId, productId, productName, totalAmount,
       monthlyPayment, remainingAmount, installmentPeriod, startDate,
-      endDate, branchId, salespersonId
+      endDate, branchId, salespersonId, inspectorId, line,
+      customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
+      customerDistrict, customerProvince, customerPhone1, customerPhone2, customerPhone3, customerEmail,
+      guarantorIdValue, guarantorTitle, guarantorName, guarantorSurname, guarantorNickname,
+      guarantorAge, guarantorIdCard, guarantorAddress, guarantorMoo, guarantorRoad,
+      guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
+      guarantorPhone2, guarantorPhone3, guarantorEmail,
+      productDescription, productCategory, productModel, productSerialNumber,
+      downPayment, monthlyPayment, months, plan?.collectionDate || null
     ];
     
     console.log('🔍 SQL Query:', sqlQuery);
@@ -593,6 +839,7 @@ router.post('/', async (req, res) => {
       SELECT 
         i.id,
         i.contract_number as contractNumber,
+        i.contract_date as contractDate,
         i.customer_id as customerId,
         i.product_id as productId,
         i.product_name as productName,
@@ -602,6 +849,44 @@ router.post('/', async (req, res) => {
         i.installment_period as installmentPeriod,
         i.start_date as startDate,
         i.end_date as endDate,
+        i.inspector_id as inspectorId,
+        i.line,
+        i.down_payment as downPayment,
+        i.monthly_payment as monthlyPayment,
+        i.months,
+        i.customer_title as customerTitle,
+        i.customer_age as customerAge,
+        i.customer_moo as customerMoo,
+        i.customer_road as customerRoad,
+        i.customer_subdistrict as customerSubdistrict,
+        i.customer_district as customerDistrict,
+        i.customer_province as customerProvince,
+        i.customer_phone1 as customerPhone1,
+        i.customer_phone2 as customerPhone2,
+        i.customer_phone3 as customerPhone3,
+        i.customer_email as customerEmail,
+        i.guarantor_id as guarantorId,
+        i.guarantor_title as guarantorTitle,
+        i.guarantor_name as guarantorName,
+        i.guarantor_surname as guarantorSurname,
+        i.guarantor_nickname as guarantorNickname,
+        i.guarantor_age as guarantorAge,
+        i.guarantor_id_card as guarantorIdCard,
+        i.guarantor_address as guarantorAddress,
+        i.guarantor_moo as guarantorMoo,
+        i.guarantor_road as guarantorRoad,
+        i.guarantor_subdistrict as guarantorSubdistrict,
+        i.guarantor_district as guarantorDistrict,
+        i.guarantor_province as guarantorProvince,
+        i.guarantor_phone1 as guarantorPhone1,
+        i.guarantor_phone2 as guarantorPhone2,
+        i.guarantor_phone3 as guarantorPhone3,
+        i.guarantor_email as guarantorEmail,
+        i.product_description as productDescription,
+        i.product_category as productCategory,
+        i.product_model as productModel,
+        i.product_serial_number as productSerialNumber,
+        i.collection_date as collectionDate,
         i.status,
         i.created_at as createdAt,
         i.updated_at as updatedAt,
@@ -626,6 +911,56 @@ router.post('/', async (req, res) => {
     
     const installment = await query(installmentQuery, [result.insertId]);
     
+    // Build structured objects for response
+    const installmentData = {
+      ...installment[0],
+      contractNumber: finalContractNumber,
+      customerDetails: {
+        title: installment[0].customerTitle,
+        age: installment[0].customerAge,
+        moo: installment[0].customerMoo,
+        road: installment[0].customerRoad,
+        subdistrict: installment[0].customerSubdistrict,
+        district: installment[0].customerDistrict,
+        province: installment[0].customerProvince,
+        phone1: installment[0].customerPhone1,
+        phone2: installment[0].customerPhone2,
+        phone3: installment[0].customerPhone3,
+        email: installment[0].customerEmail
+      },
+      guarantorDetails: {
+        id: installment[0].guarantorId,
+        title: installment[0].guarantorTitle,
+        name: installment[0].guarantorName,
+        surname: installment[0].guarantorSurname,
+        nickname: installment[0].guarantorNickname,
+        age: installment[0].guarantorAge,
+        idCard: installment[0].guarantorIdCard,
+        address: installment[0].guarantorAddress,
+        moo: installment[0].guarantorMoo,
+        road: installment[0].guarantorRoad,
+        subdistrict: installment[0].guarantorSubdistrict,
+        district: installment[0].guarantorDistrict,
+        province: installment[0].guarantorProvince,
+        phone1: installment[0].guarantorPhone1,
+        phone2: installment[0].guarantorPhone2,
+        phone3: installment[0].guarantorPhone3,
+        email: installment[0].guarantorEmail
+      },
+      productDetails: {
+        description: installment[0].productDescription,
+        category: installment[0].productCategory,
+        model: installment[0].productModel,
+        serialNumber: installment[0].productSerialNumber
+      },
+      plan: {
+        downPayment: installment[0].downPayment,
+        monthlyPayment: installment[0].monthlyPayment,
+        months: installment[0].months,
+        collectionDate: installment[0].collectionDate
+      }
+    };
+    
     // Create payment schedule automatically (if payments table exists)
     try {
       console.log('🔍 Creating payment schedule for installment:', result.insertId);
@@ -633,10 +968,7 @@ router.post('/', async (req, res) => {
       
       res.status(201).json({
         success: true,
-        data: {
-          ...installment[0],
-          contractNumber: finalContractNumber
-        },
+        data: installmentData,
         message: 'Installment created successfully with payment schedule',
         warning: contractNumberWarning
       });
@@ -645,10 +977,7 @@ router.post('/', async (req, res) => {
       
       res.status(201).json({
         success: true,
-        data: {
-          ...installment[0],
-          contractNumber: finalContractNumber
-        },
+        data: installmentData,
         message: 'Installment created successfully (payment schedule will be created when database is updated)',
         warning: contractNumberWarning,
         paymentScheduleWarning: 'Payment schedule creation failed. Please run database setup script.'
@@ -747,6 +1076,7 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const {
       contractNumber,
+      contractDate,
       customerId,
       productId,
       productName,
@@ -756,20 +1086,86 @@ router.put('/:id', async (req, res) => {
       startDate,
       endDate,
       status,
-      salespersonId
+      salespersonId,
+      inspectorId,
+      line,
+      customerDetails,
+      productDetails,
+      guarantorDetails,
+      plan
     } = req.body;
+    
+    // Extract customer details
+    const customerTitle = customerDetails?.title || null;
+    const customerAge = customerDetails?.age || null;
+    const customerMoo = customerDetails?.moo || null;
+    const customerRoad = customerDetails?.road || null;
+    const customerSubdistrict = customerDetails?.subdistrict || null;
+    const customerDistrict = customerDetails?.district || null;
+    const customerProvince = customerDetails?.province || null;
+    const customerPhone1 = customerDetails?.phone1 || null;
+    const customerPhone2 = customerDetails?.phone2 || null;
+    const customerPhone3 = customerDetails?.phone3 || null;
+    const customerEmail = customerDetails?.email || null;
+    
+    // Extract guarantor details
+    const guarantorIdValue = guarantorDetails?.id || null;
+    const guarantorTitle = guarantorDetails?.title || null;
+    const guarantorName = guarantorDetails?.name || null;
+    const guarantorSurname = guarantorDetails?.surname || null;
+    const guarantorNickname = guarantorDetails?.nickname || null;
+    const guarantorAge = guarantorDetails?.age || null;
+    const guarantorIdCard = guarantorDetails?.idCard || null;
+    const guarantorAddress = guarantorDetails?.address || null;
+    const guarantorMoo = guarantorDetails?.moo || null;
+    const guarantorRoad = guarantorDetails?.road || null;
+    const guarantorSubdistrict = guarantorDetails?.subdistrict || null;
+    const guarantorDistrict = guarantorDetails?.district || null;
+    const guarantorProvince = guarantorDetails?.province || null;
+    const guarantorPhone1 = guarantorDetails?.phone1 || null;
+    const guarantorPhone2 = guarantorDetails?.phone2 || null;
+    const guarantorPhone3 = guarantorDetails?.phone3 || null;
+    const guarantorEmail = guarantorDetails?.email || null;
+    
+    // Extract product details
+    const productDescription = productDetails?.description || null;
+    const productCategory = productDetails?.category || null;
+    const productModel = productDetails?.model || null;
+    const productSerialNumber = productDetails?.serialNumber || null;
+    
+    // Extract plan details
+    const downPayment = plan?.downPayment || 0;
+    const monthlyPayment = plan?.monthlyPayment || installmentAmount;
+    const months = plan?.months || installmentPeriod;
     
     const sqlQuery = `
       UPDATE installments 
-      SET contract_number = ?, customer_id = ?, product_id = ?, product_name = ?, 
+      SET contract_number = ?, contract_date = ?, customer_id = ?, product_id = ?, product_name = ?, 
           total_amount = ?, installment_amount = ?, installment_period = ?, 
-          start_date = ?, end_date = ?, status = ?, salesperson_id = ?, updated_at = NOW()
+          start_date = ?, end_date = ?, status = ?, salesperson_id = ?, inspector_id = ?, line = ?,
+          customer_title = ?, customer_age = ?, customer_moo = ?, customer_road = ?, customer_subdistrict = ?,
+          customer_district = ?, customer_province = ?, customer_phone1 = ?, customer_phone2 = ?, customer_phone3 = ?, customer_email = ?,
+          guarantor_id = ?, guarantor_title = ?, guarantor_name = ?, guarantor_surname = ?, guarantor_nickname = ?,
+          guarantor_age = ?, guarantor_id_card = ?, guarantor_address = ?, guarantor_moo = ?, guarantor_road = ?,
+          guarantor_subdistrict = ?, guarantor_district = ?, guarantor_province = ?, guarantor_phone1 = ?,
+          guarantor_phone2 = ?, guarantor_phone3 = ?, guarantor_email = ?,
+          product_description = ?, product_category = ?, product_model = ?, product_serial_number = ?,
+          down_payment = ?, monthly_payment = ?, months = ?,
+          updated_at = NOW()
       WHERE id = ?
     `;
     
     await query(sqlQuery, [
-      contractNumber, customerId, productId, productName, totalAmount,
-      installmentAmount, installmentPeriod, startDate, endDate, status, salespersonId, id
+      contractNumber, contractDate, customerId, productId, productName, totalAmount,
+      installmentAmount, installmentPeriod, startDate, endDate, status, salespersonId, 
+      inspectorId, line, customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
+      customerDistrict, customerProvince, customerPhone1, customerPhone2, customerPhone3, customerEmail,
+      guarantorIdValue, guarantorTitle, guarantorName, guarantorSurname, guarantorNickname,
+      guarantorAge, guarantorIdCard, guarantorAddress, guarantorMoo, guarantorRoad,
+      guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
+      guarantorPhone2, guarantorPhone3, guarantorEmail,
+      productDescription, productCategory, productModel, productSerialNumber,
+      downPayment, monthlyPayment, months, id
     ]);
     
     // Get the updated installment
@@ -777,6 +1173,7 @@ router.put('/:id', async (req, res) => {
       SELECT 
         i.id,
         i.contract_number as contractNumber,
+        i.contract_date as contractDate,
         i.customer_id as customerId,
         i.product_id as productId,
         i.product_name as productName,
@@ -786,6 +1183,16 @@ router.put('/:id', async (req, res) => {
         i.installment_period as installmentPeriod,
         i.start_date as startDate,
         i.end_date as endDate,
+        i.inspector_id as inspectorId,
+        i.line,
+        i.down_payment as downPayment,
+        i.monthly_payment as monthlyPayment,
+        i.months,
+        i.customer_details as customerDetails,
+        i.product_details as productDetails,
+        i.guarantor_details as guarantorDetails,
+        i.plan_details as planDetails,
+        i.notes,
         i.status,
         i.created_at as createdAt,
         i.updated_at as updatedAt,
@@ -816,9 +1223,18 @@ router.put('/:id', async (req, res) => {
       });
     }
     
+    // Parse JSON fields
+    const result = {
+      ...installment[0],
+      customerDetails: safeJsonParse(installment[0].customerDetails),
+      productDetails: safeJsonParse(installment[0].productDetails),
+      guarantorDetails: safeJsonParse(installment[0].guarantorDetails),
+      planDetails: safeJsonParse(installment[0].planDetails)
+    };
+    
     res.json({
       success: true,
-      data: installment[0],
+      data: result,
       message: 'Installment updated successfully'
     });
   } catch (error) {

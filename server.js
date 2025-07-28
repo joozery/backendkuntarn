@@ -16,12 +16,16 @@ const branchesRoutes = require('./routes/branches');
 const checkersRoutes = require('./routes/checkers');
 const customersRoutes = require('./routes/customers');
 const installmentsRoutes = require('./routes/installments');
+const productsRoutes = require('./routes/products');
+const employeesRoutes = require('./routes/employees');
 
 // Use routes
 app.use('/api/branches', branchesRoutes);
 app.use('/api/checkers', checkersRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/installments', installmentsRoutes);
+app.use('/api/products', productsRoutes);
+app.use('/api/employees', employeesRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

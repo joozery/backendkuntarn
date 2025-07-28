@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db/db');
+const { query } = require('../db/db');
 
 // GET /api/installments - Get all installments
 router.get('/', async (req, res) => {
   try {
     const { branchId, status, customerId, search, month, year } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         i.id,
         i.contract_number as contractNumber,
@@ -45,47 +45,39 @@ router.get('/', async (req, res) => {
     const params = [];
     
     if (branchId) {
-      query += ' AND i.branch_id = ?';
+      sqlQuery += ' AND i.branch_id = ?';
       params.push(branchId);
     }
     
     if (status) {
-      query += ' AND i.status = ?';
+      sqlQuery += ' AND i.status = ?';
       params.push(status);
     }
     
     if (customerId) {
-      query += ' AND i.customer_id = ?';
+      sqlQuery += ' AND i.customer_id = ?';
       params.push(customerId);
     }
     
     if (month && year) {
-      query += ' AND MONTH(i.created_at) = ? AND YEAR(i.created_at) = ?';
+      sqlQuery += ' AND MONTH(i.created_at) = ? AND YEAR(i.created_at) = ?';
       params.push(month, year);
     }
     
     if (search) {
-      query += ' AND (i.contract_number LIKE ? OR c.full_name LIKE ? OR p.name LIKE ?)';
+      sqlQuery += ' AND (i.contract_number LIKE ? OR c.full_name LIKE ? OR p.name LIKE ?)';
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm);
     }
     
-    query += ' ORDER BY i.created_at DESC';
+    sqlQuery += ' ORDER BY i.created_at DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching installments:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
-      
-      res.json({
-        success: true,
-        data: results,
-        count: results.length
-      });
+    const results = await query(sqlQuery, params);
+    
+    res.json({
+      success: true,
+      data: results,
+      count: results.length
     });
   } catch (error) {
     console.error('Error in installments GET:', error);
@@ -101,7 +93,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = `
+    const sqlQuery = `
       SELECT 
         i.id,
         i.contract_number as contractNumber,
@@ -124,34 +116,29 @@ router.get('/:id', async (req, res) => {
         c.address as customerAddress,
         p.name as productName,
         p.price as productPrice,
-        p.description as productDescription,
-        b.name as branchName
+        b.name as branchName,
+        e.name as salespersonName,
+        e.surname as salespersonSurname,
+        e.full_name as salespersonFullName
       FROM installments i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN products p ON i.product_id = p.id
       LEFT JOIN branches b ON i.branch_id = b.id
+      LEFT JOIN employees e ON i.salesperson_id = e.id
       WHERE i.id = ?
     `;
     
-    db.query(query, [id], (err, results) => {
-      if (err) {
-        console.error('Error fetching installment:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
-      
-      if (results.length === 0) {
-        return res.status(404).json({ 
-          error: 'Installment not found' 
-        });
-      }
-      
-      res.json({
-        success: true,
-        data: results[0]
+    const results = await query(sqlQuery, [id]);
+    
+    if (results.length === 0) {
+      return res.status(404).json({ 
+        error: 'Installment not found' 
       });
+    }
+    
+    res.json({
+      success: true,
+      data: results[0]
     });
   } catch (error) {
     console.error('Error in installment GET by ID:', error);
@@ -197,20 +184,12 @@ router.get('/:id/payments', async (req, res) => {
     
     query += ' ORDER BY p.payment_date DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching installment payments:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
-      
-      res.json({
-        success: true,
-        data: results,
-        count: results.length
-      });
+    const results = await query(query, params);
+    
+    res.json({
+      success: true,
+      data: results,
+      count: results.length
     });
   } catch (error) {
     console.error('Error in installment payments GET:', error);
@@ -259,23 +238,108 @@ router.get('/:id/collections', async (req, res) => {
     
     query += ' ORDER BY pc.payment_date DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching installment collections:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
-      
-      res.json({
-        success: true,
-        data: results,
-        count: results.length
-      });
+    const results = await query(query, params);
+    
+    res.json({
+      success: true,
+      data: results,
+      count: results.length
     });
   } catch (error) {
     console.error('Error in installment collections GET:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
+});
+
+// POST /api/installments - Create new installment
+router.post('/', async (req, res) => {
+  try {
+    const {
+      contractNumber,
+      customerId,
+      productId,
+      productName,
+      totalAmount,
+      installmentAmount,
+      installmentPeriod,
+      startDate,
+      endDate,
+      branchId,
+      salespersonId
+    } = req.body;
+    
+    if (!contractNumber || !customerId || !productId || !totalAmount || !installmentAmount || !branchId) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        message: 'Contract number, customer ID, product ID, total amount, installment amount, and branch ID are required' 
+      });
+    }
+    
+    const sqlQuery = `
+      INSERT INTO installments (
+        contract_number, customer_id, product_id, product_name, total_amount, 
+        installment_amount, remaining_amount, installment_period, start_date, 
+        end_date, branch_id, salesperson_id, status, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+    `;
+    
+    const remainingAmount = totalAmount - installmentAmount;
+    
+    const result = await query(sqlQuery, [
+      contractNumber, customerId, productId, productName, totalAmount,
+      installmentAmount, remainingAmount, installmentPeriod, startDate,
+      endDate, branchId, salespersonId
+    ]);
+    
+    // Get the created installment
+    const installmentQuery = `
+      SELECT 
+        i.id,
+        i.contract_number as contractNumber,
+        i.customer_id as customerId,
+        i.product_id as productId,
+        i.product_name as productName,
+        i.total_amount as totalAmount,
+        i.installment_amount as installmentAmount,
+        i.remaining_amount as remainingAmount,
+        i.installment_period as installmentPeriod,
+        i.start_date as startDate,
+        i.end_date as endDate,
+        i.status,
+        i.created_at as createdAt,
+        i.updated_at as updatedAt,
+        c.name as customerName,
+        c.surname as customerSurname,
+        c.full_name as customerFullName,
+        c.phone as customerPhone,
+        c.address as customerAddress,
+        p.name as productName,
+        p.price as productPrice,
+        b.name as branchName,
+        e.name as salespersonName,
+        e.surname as salespersonSurname,
+        e.full_name as salespersonFullName
+      FROM installments i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN products p ON i.product_id = p.id
+      LEFT JOIN branches b ON i.branch_id = b.id
+      LEFT JOIN employees e ON i.salesperson_id = e.id
+      WHERE i.id = ?
+    `;
+    
+    const installment = await query(installmentQuery, [result.insertId]);
+    
+    res.status(201).json({
+      success: true,
+      data: installment[0],
+      message: 'Installment created successfully'
+    });
+  } catch (error) {
+    console.error('Error in installment POST:', error);
     res.status(500).json({ 
       error: 'Server error', 
       message: error.message 
@@ -287,38 +351,111 @@ router.get('/:id/collections', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, remainingAmount } = req.body;
+    const {
+      contractNumber,
+      customerId,
+      productId,
+      productName,
+      totalAmount,
+      installmentAmount,
+      installmentPeriod,
+      startDate,
+      endDate,
+      status,
+      salespersonId
+    } = req.body;
     
-    const query = `
+    const sqlQuery = `
       UPDATE installments 
-      SET status = ?, remaining_amount = ?, updated_at = NOW()
+      SET contract_number = ?, customer_id = ?, product_id = ?, product_name = ?, 
+          total_amount = ?, installment_amount = ?, installment_period = ?, 
+          start_date = ?, end_date = ?, status = ?, salesperson_id = ?, updated_at = NOW()
       WHERE id = ?
     `;
     
-    const params = [status, remainingAmount, id];
+    await query(sqlQuery, [
+      contractNumber, customerId, productId, productName, totalAmount,
+      installmentAmount, installmentPeriod, startDate, endDate, status, salespersonId, id
+    ]);
     
-    db.query(query, params, (err, result) => {
-      if (err) {
-        console.error('Error updating installment:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ 
-          error: 'Installment not found' 
-        });
-      }
-      
-      res.json({
-        success: true,
-        message: 'Installment updated successfully'
+    // Get the updated installment
+    const installmentQuery = `
+      SELECT 
+        i.id,
+        i.contract_number as contractNumber,
+        i.customer_id as customerId,
+        i.product_id as productId,
+        i.product_name as productName,
+        i.total_amount as totalAmount,
+        i.installment_amount as installmentAmount,
+        i.remaining_amount as remainingAmount,
+        i.installment_period as installmentPeriod,
+        i.start_date as startDate,
+        i.end_date as endDate,
+        i.status,
+        i.created_at as createdAt,
+        i.updated_at as updatedAt,
+        c.name as customerName,
+        c.surname as customerSurname,
+        c.full_name as customerFullName,
+        c.phone as customerPhone,
+        c.address as customerAddress,
+        p.name as productName,
+        p.price as productPrice,
+        b.name as branchName,
+        e.name as salespersonName,
+        e.surname as salespersonSurname,
+        e.full_name as salespersonFullName
+      FROM installments i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN products p ON i.product_id = p.id
+      LEFT JOIN branches b ON i.branch_id = b.id
+      LEFT JOIN employees e ON i.salesperson_id = e.id
+      WHERE i.id = ?
+    `;
+    
+    const installment = await query(installmentQuery, [id]);
+    
+    if (installment.length === 0) {
+      return res.status(404).json({ 
+        error: 'Installment not found' 
       });
+    }
+    
+    res.json({
+      success: true,
+      data: installment[0],
+      message: 'Installment updated successfully'
     });
   } catch (error) {
     console.error('Error in installment PUT:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
+});
+
+// DELETE /api/installments/:id - Delete installment
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const sqlQuery = 'DELETE FROM installments WHERE id = ?';
+    const result = await query(sqlQuery, [id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        error: 'Installment not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Installment deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in installment DELETE:', error);
     res.status(500).json({ 
       error: 'Server error', 
       message: error.message 

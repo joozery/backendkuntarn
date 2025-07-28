@@ -400,17 +400,27 @@ router.post('/', async (req, res) => {
     
     // Generate unique contract number if not provided or if duplicate
     let finalContractNumber = contractNumber;
+    let contractNumberWarning = null;
+    
     if (!finalContractNumber) {
+      // If no contract number provided, generate automatically
       finalContractNumber = await generateUniqueContractNumber();
+      console.log('🔍 No contract number provided, generated:', finalContractNumber);
     } else {
-      // Check if contract number already exists
+      // If contract number provided, check if it already exists
       const existingContract = await query(
         'SELECT id FROM installments WHERE contract_number = ?',
         [finalContractNumber]
       );
       
       if (existingContract.length > 0) {
+        // If duplicate, generate new one and notify user
+        const originalNumber = finalContractNumber;
         finalContractNumber = await generateUniqueContractNumber();
+        contractNumberWarning = `เลขที่สัญญา "${originalNumber}" มีอยู่แล้ว ระบบได้สร้างเลขใหม่: "${finalContractNumber}"`;
+        console.log(`🔍 Contract number "${originalNumber}" already exists, generated new one:`, finalContractNumber);
+      } else {
+        console.log('🔍 Using provided contract number:', finalContractNumber);
       }
     }
     
@@ -520,7 +530,8 @@ router.post('/', async (req, res) => {
         ...installment[0],
         contractNumber: finalContractNumber
       },
-      message: 'Installment created successfully with payment schedule'
+      message: 'Installment created successfully with payment schedule',
+      warning: contractNumberWarning
     });
   } catch (error) {
     console.error('Error in installment POST:', error);

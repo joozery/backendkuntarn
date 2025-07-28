@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
         e.position,
         e.phone,
         e.email,
-        e.status,
+        'active' as status,
         e.branch_id as branchId,
         e.created_at as createdAt,
         e.updated_at as updatedAt,
@@ -39,10 +39,11 @@ router.get('/', async (req, res) => {
       params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
     
-    if (status) {
-      sqlQuery += ' AND e.status = ?';
-      params.push(status);
-    }
+    // Note: status filtering is disabled until status column is added to database
+    // if (status) {
+    //   sqlQuery += ' AND e.status = ?';
+    //   params.push(status);
+    // }
     
     sqlQuery += ' ORDER BY e.created_at DESC';
     
@@ -76,7 +77,7 @@ router.get('/:id', async (req, res) => {
         e.position,
         e.phone,
         e.email,
-        e.status,
+        'active' as status,
         e.branch_id as branchId,
         e.created_at as createdAt,
         e.updated_at as updatedAt,
@@ -120,8 +121,8 @@ router.post('/', async (req, res) => {
     }
     
     const sqlQuery = `
-      INSERT INTO employees (name, surname, full_name, position, phone, email, branch_id, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+      INSERT INTO employees (name, surname, full_name, position, phone, email, branch_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
     
     const result = await query(sqlQuery, [name, surname, fullName, position, phone, email, branchId]);
@@ -136,7 +137,7 @@ router.post('/', async (req, res) => {
         e.position,
         e.phone,
         e.email,
-        e.status,
+        'active' as status,
         e.branch_id as branchId,
         e.created_at as createdAt,
         e.updated_at as updatedAt,
@@ -170,11 +171,11 @@ router.put('/:id', async (req, res) => {
     
     const sqlQuery = `
       UPDATE employees 
-      SET name = ?, surname = ?, full_name = ?, position = ?, phone = ?, email = ?, status = ?, updated_at = NOW()
+      SET name = ?, surname = ?, full_name = ?, position = ?, phone = ?, email = ?, updated_at = NOW()
       WHERE id = ?
     `;
     
-    await query(sqlQuery, [name, surname, fullName, position, phone, email, status, id]);
+    await query(sqlQuery, [name, surname, fullName, position, phone, email, id]);
     
     // Get the updated employee
     const employeeQuery = `
@@ -186,7 +187,7 @@ router.put('/:id', async (req, res) => {
         e.position,
         e.phone,
         e.email,
-        e.status,
+        'active' as status,
         e.branch_id as branchId,
         e.created_at as createdAt,
         e.updated_at as updatedAt,

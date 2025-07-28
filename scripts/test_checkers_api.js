@@ -1,22 +1,64 @@
 const { query } = require('../db/db');
 
 async function testCheckersAPI() {
+  console.log('🔍 Testing Checkers API...\n');
+
   try {
-    console.log('🧪 ทดสอบ API checkers...\n');
+    // 1. Check if checkers table exists
+    console.log('1. Checking if checkers table exists...');
+    const tableCheck = await query(`
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'checkers'
+    `);
     
-    // Test 1: Check if checkers table has data
-    console.log('1. ตรวจสอบข้อมูลใน checkers table...');
-    const checkData = await query('SELECT COUNT(*) as count FROM checkers WHERE branch_id = 1');
-    console.log(`✅ มีข้อมูล ${checkData[0].count} รายการในสาขา 1`);
-    
-    if (checkData[0].count === 0) {
-      console.log('⚠️  ไม่มีข้อมูลใน checkers table');
-      console.log('💡 รันคำสั่ง: heroku run node scripts/setup_database.js');
+    if (tableCheck[0].count === 0) {
+      console.log('❌ checkers table does not exist!');
       return;
     }
+    console.log('✅ checkers table exists');
+
+    // 2. Check table structure
+    console.log('\n2. Checking table structure...');
+    const structure = await query(`
+      DESCRIBE checkers
+    `);
+    console.log('Table structure:', structure.map(col => `${col.Field} (${col.Type})`));
+
+    // 3. Check data count
+    console.log('\n3. Checking data count...');
+    const countResult = await query('SELECT COUNT(*) as count FROM checkers');
+    const count = countResult[0].count;
+    console.log(`Total checkers: ${count}`);
+
+    if (count === 0) {
+      console.log('❌ No data in checkers table!');
+      console.log('💡 Run: heroku run node scripts/setup_database.js');
+      return;
+    }
+
+    // 4. Get sample data
+    console.log('\n4. Sample data:');
+    const sampleData = await query(`
+      SELECT 
+        id, 
+        name, 
+        surname, 
+        full_name as fullName,
+        phone,
+        branch_id as branchId,
+        status
+      FROM checkers 
+      LIMIT 5
+    `);
     
-    // Test 2: Simulate API query
-    console.log('\n2. ทดสอบ API query...');
+    sampleData.forEach((checker, index) => {
+      console.log(`${index + 1}. ${checker.fullName || `${checker.name} ${checker.surname}`} (ID: ${checker.id}, Branch: ${checker.branchId})`);
+    });
+
+    // 5. Test API query with branchId=1
+    console.log('\n5. Testing API query with branchId=1...');
     const apiQuery = `
       SELECT 
         c.id,
@@ -36,76 +78,32 @@ async function testCheckersAPI() {
       ORDER BY c.created_at DESC
     `;
     
-    const results = await query(apiQuery);
-    console.log(`✅ API query สำเร็จ - ได้ข้อมูล ${results.length} รายการ`);
+    const apiResults = await query(apiQuery);
+    console.log(`API query results for branchId=1: ${apiResults.length} records`);
     
-    // Test 3: Show sample data
-    console.log('\n3. ข้อมูลตัวอย่าง:');
-    results.forEach((checker, index) => {
-      console.log(`   ${index + 1}. ID: ${checker.id}`);
-      console.log(`      ชื่อ: ${checker.name}`);
-      console.log(`      นามสกุล: ${checker.surname}`);
-      console.log(`      ชื่อเต็ม: ${checker.fullName}`);
-      console.log(`      เบอร์โทร: ${checker.phone}`);
-      console.log(`      สถานะ: ${checker.status}`);
-      console.log(`      สาขา: ${checker.branchName}`);
-      console.log('');
+    apiResults.forEach((checker, index) => {
+      console.log(`${index + 1}. ${checker.fullName} (ID: ${checker.id})`);
     });
-    
-    // Test 4: Test search functionality
-    console.log('4. ทดสอบการค้นหา...');
-    const searchQuery = `
-      SELECT 
-        c.id,
-        c.name,
-        c.surname,
-        c.full_name as fullName,
-        c.phone,
-        c.email,
-        c.status,
-        c.branch_id as branchId,
-        c.created_at as createdAt,
-        c.updated_at as updatedAt,
-        b.name as branchName
-      FROM checkers c
-      LEFT JOIN branches b ON c.branch_id = b.id
-      WHERE c.branch_id = 1
-      AND (c.name LIKE '%สมชาย%' OR c.surname LIKE '%สมชาย%' OR c.full_name LIKE '%สมชาย%')
-      ORDER BY c.created_at DESC
-    `;
-    
-    const searchResults = await query(searchQuery);
-    console.log(`✅ การค้นหา "สมชาย" - ได้ข้อมูล ${searchResults.length} รายการ`);
-    
-    if (searchResults.length > 0) {
-      searchResults.forEach((checker, index) => {
-        console.log(`   ${index + 1}. ${checker.fullName} (${checker.phone})`);
-      });
-    }
-    
-    // Test 5: Simulate API response format
-    console.log('\n5. รูปแบบ API response:');
-    const apiResponse = {
-      success: true,
-      data: results,
-      count: results.length
-    };
-    
-    console.log('✅ API Response Format:');
-    console.log(JSON.stringify(apiResponse, null, 2));
-    
+
+    console.log('\n✅ Checkers API test completed successfully!');
+
   } catch (error) {
-    console.error('❌ เกิดข้อผิดพลาดในการทดสอบ:', error);
+    console.error('❌ Error testing checkers API:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      sqlMessage: error.sqlMessage
+    });
   }
 }
 
-// Run the function
+// Run the test
 testCheckersAPI()
   .then(() => {
-    console.log('\n🎉 การทดสอบเสร็จสิ้น');
+    console.log('\n🏁 Test completed');
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n❌ การทดสอบล้มเหลว:', error);
+    console.error('💥 Test failed:', error);
     process.exit(1);
   }); 

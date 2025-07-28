@@ -324,70 +324,28 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Use original schema for now (before database migration)
     const sqlQuery = `
       INSERT INTO installments (
-        contract_number, contract_date, customer_id, product_id, product_name, 
+        contract_number, customer_id, product_id, product_name, 
         total_amount, installment_amount, remaining_amount, installment_period, 
-        start_date, end_date, branch_id, salesperson_id, inspector_id, line,
-        
-        -- Customer details
-        customer_title, customer_age, customer_moo, customer_road, 
-        customer_subdistrict, customer_district, customer_province,
-        customer_phone1, customer_phone2, customer_phone3, customer_email,
-        
-        -- Guarantor details
-        guarantor_id, guarantor_title, guarantor_name, guarantor_surname,
-        guarantor_nickname, guarantor_age, guarantor_id_card, guarantor_address,
-        guarantor_moo, guarantor_road, guarantor_subdistrict, guarantor_district,
-        guarantor_province, guarantor_phone1, guarantor_phone2, guarantor_phone3,
-        guarantor_email,
-        
-        -- Product details
-        product_description, product_category, product_model, product_serial_number,
-        
-        -- Plan details
-        down_payment, monthly_payment, months, collection_date,
-        
-        status, created_at, updated_at
+        start_date, end_date, branch_id, salesperson_id, status, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
     `;
     
     const remainingAmount = totalAmount - (plan?.downPayment || 0);
     
-    const result = await query(sqlQuery, [
-      // Basic contract info
-      contractNumber, contractDate, customerId, productId, productName, totalAmount,
+    const params = [
+      contractNumber, customerId, productId, productName, totalAmount,
       monthlyPayment, remainingAmount, installmentPeriod, startDate,
-      endDate, branchId, salespersonId, inspectorId, line,
-      
-      // Customer details
-      customerDetails?.title || null, customerDetails?.age || null,
-      customerDetails?.moo || null, customerDetails?.road || null,
-      customerDetails?.subdistrict || null, customerDetails?.district || null,
-      customerDetails?.province || null, customerDetails?.phone1 || null,
-      customerDetails?.phone2 || null, customerDetails?.phone3 || null,
-      customerDetails?.email || null,
-      
-      // Guarantor details
-      guarantorId || null, guarantorDetails?.title || null,
-      guarantorDetails?.name || null, guarantorDetails?.surname || null,
-      guarantorDetails?.nickname || null, guarantorDetails?.age || null,
-      guarantorDetails?.idCard || null, guarantorDetails?.address || null,
-      guarantorDetails?.moo || null, guarantorDetails?.road || null,
-      guarantorDetails?.subdistrict || null, guarantorDetails?.district || null,
-      guarantorDetails?.province || null, guarantorDetails?.phone1 || null,
-      guarantorDetails?.phone2 || null, guarantorDetails?.phone3 || null,
-      guarantorDetails?.email || null,
-      
-      // Product details
-      productDetails?.description || null, productDetails?.category || null,
-      productDetails?.model || null, productDetails?.serialNumber || null,
-      
-      // Plan details
-      plan?.downPayment || 0, plan?.monthlyPayment || null,
-      plan?.months || null, plan?.collectionDate || null
-    ]);
+      endDate, branchId, salespersonId
+    ];
+    
+    console.log('🔍 SQL Query:', sqlQuery);
+    console.log('🔍 Parameters:', params);
+    
+    const result = await query(sqlQuery, params);
     
     // Get the created installment
     const installmentQuery = `

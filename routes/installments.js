@@ -282,6 +282,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🔍 GET /api/installments/:id called with id:', id);
     
     const sqlQuery = `
       SELECT 
@@ -360,8 +361,10 @@ router.get('/:id', async (req, res) => {
     `;
     
     const results = await query(sqlQuery, [id]);
+    console.log('🔍 Query results for id', id, ':', results.length, 'records');
     
     if (results.length === 0) {
+      console.log('❌ No installment found for id:', id);
       return res.status(404).json({ 
         error: 'Installment not found' 
       });

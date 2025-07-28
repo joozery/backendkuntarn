@@ -398,6 +398,8 @@ router.post('/', async (req, res) => {
       plan
     } = req.body;
     
+    console.log('🔍 POST /api/installments - Request body:', req.body);
+    
     // Generate unique contract number if not provided or if duplicate
     let finalContractNumber = contractNumber;
     let contractNumberWarning = null;
@@ -425,8 +427,6 @@ router.post('/', async (req, res) => {
     }
     
     console.log('🔍 Using contract number:', finalContractNumber);
-    
-    console.log('🔍 POST /api/installments - Request body:', req.body);
     
     // Check required fields
     const requiredFields = {
@@ -459,7 +459,113 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Use original schema for now (before database migration)
+    // Update customer information if customerDetails provided
+    if (customerDetails && customerId) {
+      try {
+        const customerUpdateQuery = `
+          UPDATE customers SET 
+            name = ?, 
+            surname = ?, 
+            full_name = ?,
+            nickname = ?,
+            phone = ?,
+            address = ?,
+            updated_at = NOW()
+          WHERE id = ?
+        `;
+        
+        const fullName = `${customerDetails.title || ''} ${customerDetails.name || ''}`.trim();
+        const address = [
+          customerDetails.address,
+          customerDetails.moo,
+          customerDetails.road,
+          customerDetails.subdistrict,
+          customerDetails.district,
+          customerDetails.province
+        ].filter(Boolean).join(' ');
+        
+        await query(customerUpdateQuery, [
+          customerDetails.name || '',
+          customerDetails.surname || '',
+          fullName,
+          customerDetails.nickname || '',
+          customerDetails.phone1 || '',
+          address,
+          customerId
+        ]);
+        
+        console.log('✅ Updated customer information');
+      } catch (customerError) {
+        console.log('⚠️ Failed to update customer information:', customerError.message);
+      }
+    }
+    
+    // Update or create guarantor if guarantorDetails provided
+    if (guarantorDetails && guarantorId) {
+      try {
+        const guarantorUpdateQuery = `
+          UPDATE customers SET 
+            guarantor_name = ?,
+            guarantor_id_card = ?,
+            guarantor_nickname = ?,
+            guarantor_phone = ?,
+            guarantor_address = ?,
+            updated_at = NOW()
+          WHERE id = ?
+        `;
+        
+        const guarantorAddress = [
+          guarantorDetails.address,
+          guarantorDetails.moo,
+          guarantorDetails.road,
+          guarantorDetails.subdistrict,
+          guarantorDetails.district,
+          guarantorDetails.province
+        ].filter(Boolean).join(' ');
+        
+        await query(guarantorUpdateQuery, [
+          guarantorDetails.name || '',
+          guarantorDetails.idCard || '',
+          guarantorDetails.nickname || '',
+          guarantorDetails.phone1 || '',
+          guarantorAddress,
+          guarantorId
+        ]);
+        
+        console.log('✅ Updated guarantor information');
+      } catch (guarantorError) {
+        console.log('⚠️ Failed to update guarantor information:', guarantorError.message);
+      }
+    }
+    
+    // Update product information if productDetails provided
+    if (productDetails && productId) {
+      try {
+        const productUpdateQuery = `
+          UPDATE products SET 
+            description = ?,
+            updated_at = NOW()
+          WHERE id = ?
+        `;
+        
+        const productDescription = [
+          `รุ่น: ${productDetails.model || ''}`,
+          `S/N: ${productDetails.serialNumber || ''}`,
+          productDetails.description || ''
+        ].filter(Boolean).join(' | ');
+        
+        await query(productUpdateQuery, [
+          productDescription,
+          productId
+        ]);
+        
+        console.log('✅ Updated product information');
+      } catch (productError) {
+        console.log('⚠️ Failed to update product information:', productError.message);
+      }
+    }
+    
+    // Insert installment record
     const sqlQuery = `
       INSERT INTO installments (
         contract_number, customer_id, product_id, product_name, 

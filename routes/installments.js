@@ -136,6 +136,8 @@ router.get('/', async (req, res) => {
         i.customer_phone2 as customerPhone2,
         i.customer_phone3 as customerPhone3,
         i.customer_email as customerEmail,
+        i.customer_id_card as customerIdCard,
+        i.customer_nickname as customerNickname,
         i.guarantor_id as guarantorId,
         i.guarantor_title as guarantorTitle,
         i.guarantor_name as guarantorName,

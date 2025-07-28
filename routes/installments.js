@@ -259,7 +259,8 @@ router.get('/', async (req, res) => {
       plan: {
         downPayment: result.downPayment,
         monthlyPayment: result.monthlyPayment,
-        months: result.months
+        months: result.months,
+        collectionDate: result.collectionDate
       }
     }));
     
@@ -815,6 +816,39 @@ router.post('/', async (req, res) => {
     const productModel = productDetails?.model || null;
     const productSerialNumber = productDetails?.serialNumber || null;
     
+    // Helper function to convert date format
+    function convertDateFormat(dateString) {
+      if (!dateString) return null;
+      
+      // If it's already in YYYY-MM-DD format, return as is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return dateString;
+      }
+      
+      // If it's in DD-MM-YYYY format, convert to YYYY-MM-DD
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+        const parts = dateString.split('-');
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      
+      // If it's in DD-MM-YYYY format (Thai year), convert to YYYY-MM-DD
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+        const parts = dateString.split('-');
+        const thaiYear = parseInt(parts[2]);
+        const adYear = thaiYear - 543; // Convert Thai year to AD year
+        return `${adYear}-${parts[1]}-${parts[0]}`;
+      }
+      
+      // If it's just a day number, return null (we'll handle this differently)
+      if (/^\d{1,2}$/.test(dateString)) {
+        return null;
+      }
+      
+      return null;
+    }
+    
+    const collectionDate = convertDateFormat(plan?.collectionDate);
+    
     const params = [
       finalContractNumber, contractDate, customerId, productId, productName, totalAmount,
       monthlyPayment, remainingAmount, installmentPeriod, startDate,
@@ -826,7 +860,7 @@ router.post('/', async (req, res) => {
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
       guarantorPhone2, guarantorPhone3, guarantorEmail,
       productDescription, productCategory, productModel, productSerialNumber,
-      downPayment, monthlyPayment, months, plan?.collectionDate || null
+      downPayment, monthlyPayment, months, collectionDate
     ];
     
     console.log('🔍 SQL Query:', sqlQuery);
@@ -957,7 +991,7 @@ router.post('/', async (req, res) => {
         downPayment: installment[0].downPayment,
         monthlyPayment: installment[0].monthlyPayment,
         months: installment[0].months,
-        collectionDate: installment[0].collectionDate
+        collectionDate: installment[0].collectionDate || plan?.collectionDate || null
       }
     };
     
@@ -1138,6 +1172,39 @@ router.put('/:id', async (req, res) => {
     const monthlyPayment = plan?.monthlyPayment || installmentAmount;
     const months = plan?.months || installmentPeriod;
     
+    // Helper function to convert date format (reuse from POST)
+    function convertDateFormat(dateString) {
+      if (!dateString) return null;
+      
+      // If it's already in YYYY-MM-DD format, return as is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        return dateString;
+      }
+      
+      // If it's in DD-MM-YYYY format, convert to YYYY-MM-DD
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+        const parts = dateString.split('-');
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      
+      // If it's in DD-MM-YYYY format (Thai year), convert to YYYY-MM-DD
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+        const parts = dateString.split('-');
+        const thaiYear = parseInt(parts[2]);
+        const adYear = thaiYear - 543; // Convert Thai year to AD year
+        return `${adYear}-${parts[1]}-${parts[0]}`;
+      }
+      
+      // If it's just a day number, return null
+      if (/^\d{1,2}$/.test(dateString)) {
+        return null;
+      }
+      
+      return null;
+    }
+    
+    const collectionDate = convertDateFormat(plan?.collectionDate);
+    
     const sqlQuery = `
       UPDATE installments 
       SET contract_number = ?, contract_date = ?, customer_id = ?, product_id = ?, product_name = ?, 
@@ -1150,7 +1217,7 @@ router.put('/:id', async (req, res) => {
           guarantor_subdistrict = ?, guarantor_district = ?, guarantor_province = ?, guarantor_phone1 = ?,
           guarantor_phone2 = ?, guarantor_phone3 = ?, guarantor_email = ?,
           product_description = ?, product_category = ?, product_model = ?, product_serial_number = ?,
-          down_payment = ?, monthly_payment = ?, months = ?,
+          down_payment = ?, monthly_payment = ?, months = ?, collection_date = ?,
           updated_at = NOW()
       WHERE id = ?
     `;
@@ -1165,7 +1232,7 @@ router.put('/:id', async (req, res) => {
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
       guarantorPhone2, guarantorPhone3, guarantorEmail,
       productDescription, productCategory, productModel, productSerialNumber,
-      downPayment, monthlyPayment, months, id
+      downPayment, monthlyPayment, months, collectionDate, id
     ]);
     
     // Get the updated installment

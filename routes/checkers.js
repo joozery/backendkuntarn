@@ -7,6 +7,8 @@ router.get('/', async (req, res) => {
   try {
     const { branchId, search } = req.query;
     
+    console.log('🔍 Checkers API called with:', { branchId, search });
+    
     let sqlQuery = `
       SELECT 
         c.id,
@@ -40,22 +42,27 @@ router.get('/', async (req, res) => {
     
     sqlQuery += ' ORDER BY c.created_at DESC';
     
+    console.log('🔍 SQL Query:', sqlQuery);
+    console.log('🔍 SQL Params:', params);
+    
     try {
       const results = await query(sqlQuery, params);
+      console.log('✅ Checkers query results:', results.length);
+      
       res.json({
         success: true,
         data: results,
         count: results.length
       });
     } catch (err) {
-      console.error('Error fetching checkers:', err);
+      console.error('❌ Error fetching checkers:', err);
       return res.status(500).json({ 
         error: 'Database error', 
         message: err.message 
       });
     }
   } catch (error) {
-    console.error('Error in checkers GET:', error);
+    console.error('❌ Error in checkers GET:', error);
     res.status(500).json({ 
       error: 'Server error', 
       message: error.message 

@@ -1,6 +1,7 @@
 const { createMissingTables } = require('./create_missing_tables');
 const { updateCustomersSchema } = require('./update_customers_schema');
 const { updateEmployeesSchema } = require('./update_employees_schema');
+const createSampleCheckers = require('./create_sample_checkers');
 
 async function setupDatabase() {
   try {
@@ -21,11 +22,17 @@ async function setupDatabase() {
     await updateEmployeesSchema();
     console.log('✅ เสร็จสิ้น\n');
 
+    // 4. สร้างข้อมูลตัวอย่าง checkers
+    console.log('📋 ขั้นตอนที่ 4: สร้างข้อมูลตัวอย่าง checkers');
+    await createSampleCheckers();
+    console.log('✅ เสร็จสิ้น\n');
+
     console.log('🎉 การตั้งค่าฐานข้อมูลเสร็จสิ้น!');
     console.log('\n📊 สรุปการทำงาน:');
     console.log('✅ สร้างตาราง products, installments, payments, payment_collections');
     console.log('✅ เพิ่มฟิลด์ใหม่ในตาราง customers');
     console.log('✅ เพิ่มฟิลด์ใหม่ในตาราง employees');
+    console.log('✅ สร้างข้อมูลตัวอย่าง checkers');
     console.log('✅ สร้าง indexes สำหรับประสิทธิภาพ');
     console.log('✅ เพิ่มข้อมูลตัวอย่าง');
     

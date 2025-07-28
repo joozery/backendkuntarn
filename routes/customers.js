@@ -5,24 +5,16 @@ const { query } = require('../db/db');
 // GET /api/customers - Get all customers
 router.get('/', async (req, res) => {
   try {
-    const { branchId, search, status } = req.query;
+    const { branchId, checkerId, search, status } = req.query;
     
     let sqlQuery = `
       SELECT 
-        c.id,
-        c.name,
-        c.surname,
-        c.full_name as fullName,
-        c.phone,
-        c.email,
-        c.address,
-        c.status,
-        c.branch_id as branchId,
-        c.created_at as createdAt,
-        c.updated_at as updatedAt,
-        b.name as branchName
+        c.*,
+        b.name as branch_name,
+        ch.full_name as checker_name
       FROM customers c
       LEFT JOIN branches b ON c.branch_id = b.id
+      LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE 1=1
     `;
     
@@ -33,13 +25,26 @@ router.get('/', async (req, res) => {
       params.push(branchId);
     }
     
-    if (search) {
-      sqlQuery += ' AND (c.name LIKE ? OR c.surname LIKE ? OR c.full_name LIKE ? OR c.phone LIKE ?)';
-      const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    if (checkerId) {
+      sqlQuery += ' AND c.checker_id = ?';
+      params.push(checkerId);
     }
     
-    if (status) {
+    if (search) {
+      sqlQuery += ` AND (
+        c.code LIKE ? OR 
+        c.full_name LIKE ? OR 
+        c.id_card LIKE ? OR 
+        c.nickname LIKE ? OR
+        c.guarantor_name LIKE ? OR
+        c.guarantor_id_card LIKE ? OR
+        c.guarantor_nickname LIKE ?
+      )`;
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+    
+    if (status && status !== 'all') {
       sqlQuery += ' AND c.status = ?';
       params.push(status);
     }
@@ -51,13 +56,14 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       data: results,
-      count: results.length
+      total: results.length
     });
   } catch (error) {
-    console.error('Error in customers GET:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    console.error('Error fetching customers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });
@@ -69,28 +75,21 @@ router.get('/:id', async (req, res) => {
     
     const sqlQuery = `
       SELECT 
-        c.id,
-        c.name,
-        c.surname,
-        c.full_name as fullName,
-        c.phone,
-        c.email,
-        c.address,
-        c.status,
-        c.branch_id as branchId,
-        c.created_at as createdAt,
-        c.updated_at as updatedAt,
-        b.name as branchName
+        c.*,
+        b.name as branch_name,
+        ch.full_name as checker_name
       FROM customers c
       LEFT JOIN branches b ON c.branch_id = b.id
+      LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE c.id = ?
     `;
     
     const results = await query(sqlQuery, [id]);
     
     if (results.length === 0) {
-      return res.status(404).json({ 
-        error: 'Customer not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
       });
     }
     
@@ -99,10 +98,11 @@ router.get('/:id', async (req, res) => {
       data: results[0]
     });
   } catch (error) {
-    console.error('Error in customer GET by ID:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    console.error('Error fetching customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });
@@ -110,39 +110,51 @@ router.get('/:id', async (req, res) => {
 // POST /api/customers - Create new customer
 router.post('/', async (req, res) => {
   try {
-    const { name, surname, fullName, phone, email, address, branchId } = req.body;
-    
-    if (!name || !phone || !branchId) {
-      return res.status(400).json({ 
-        error: 'Missing required fields',
-        message: 'Name, phone, and branchId are required' 
-      });
-    }
+    const {
+      code,
+      name,
+      surname,
+      fullName,
+      idCard,
+      nickname,
+      phone,
+      email,
+      address,
+      guarantorName,
+      guarantorIdCard,
+      guarantorNickname,
+      guarantorPhone,
+      guarantorAddress,
+      status,
+      branchId,
+      checkerId
+    } = req.body;
     
     const sqlQuery = `
-      INSERT INTO customers (name, surname, full_name, phone, email, address, branch_id, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+      INSERT INTO customers (
+        code, name, surname, full_name, id_card, nickname, phone, email, address,
+        guarantor_name, guarantor_id_card, guarantor_nickname, guarantor_phone, guarantor_address,
+        status, branch_id, checker_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
-    const result = await query(sqlQuery, [name, surname, fullName, phone, email, address, branchId]);
+    const params = [
+      code, name, surname, fullName, idCard, nickname, phone, email, address,
+      guarantorName, guarantorIdCard, guarantorNickname, guarantorPhone, guarantorAddress,
+      status || 'active', branchId, checkerId
+    ];
     
-    // Get the created customer
+    const result = await query(sqlQuery, params);
+    
+    // Fetch the created customer
     const customerQuery = `
       SELECT 
-        c.id,
-        c.name,
-        c.surname,
-        c.full_name as fullName,
-        c.phone,
-        c.email,
-        c.address,
-        c.status,
-        c.branch_id as branchId,
-        c.created_at as createdAt,
-        c.updated_at as updatedAt,
-        b.name as branchName
+        c.*,
+        b.name as branch_name,
+        ch.full_name as checker_name
       FROM customers c
       LEFT JOIN branches b ON c.branch_id = b.id
+      LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE c.id = ?
     `;
     
@@ -150,14 +162,15 @@ router.post('/', async (req, res) => {
     
     res.status(201).json({
       success: true,
-      data: customer[0],
-      message: 'Customer created successfully'
+      message: 'Customer created successfully',
+      data: customer[0]
     });
   } catch (error) {
-    console.error('Error in customer POST:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    console.error('Error creating customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });
@@ -166,54 +179,75 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, surname, fullName, phone, email, address, status } = req.body;
+    const {
+      code,
+      name,
+      surname,
+      fullName,
+      idCard,
+      nickname,
+      phone,
+      email,
+      address,
+      guarantorName,
+      guarantorIdCard,
+      guarantorNickname,
+      guarantorPhone,
+      guarantorAddress,
+      status,
+      branchId,
+      checkerId
+    } = req.body;
     
     const sqlQuery = `
-      UPDATE customers 
-      SET name = ?, surname = ?, full_name = ?, phone = ?, email = ?, address = ?, status = ?, updated_at = NOW()
+      UPDATE customers SET
+        code = ?, name = ?, surname = ?, full_name = ?, id_card = ?, nickname = ?,
+        phone = ?, email = ?, address = ?, guarantor_name = ?, guarantor_id_card = ?,
+        guarantor_nickname = ?, guarantor_phone = ?, guarantor_address = ?,
+        status = ?, branch_id = ?, checker_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
     
-    await query(sqlQuery, [name, surname, fullName, phone, email, address, status, id]);
+    const params = [
+      code, name, surname, fullName, idCard, nickname, phone, email, address,
+      guarantorName, guarantorIdCard, guarantorNickname, guarantorPhone, guarantorAddress,
+      status, branchId, checkerId, id
+    ];
     
-    // Get the updated customer
+    const result = await query(sqlQuery, params);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+    
+    // Fetch the updated customer
     const customerQuery = `
       SELECT 
-        c.id,
-        c.name,
-        c.surname,
-        c.full_name as fullName,
-        c.phone,
-        c.email,
-        c.address,
-        c.status,
-        c.branch_id as branchId,
-        c.created_at as createdAt,
-        c.updated_at as updatedAt,
-        b.name as branchName
+        c.*,
+        b.name as branch_name,
+        ch.full_name as checker_name
       FROM customers c
       LEFT JOIN branches b ON c.branch_id = b.id
+      LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE c.id = ?
     `;
     
     const customer = await query(customerQuery, [id]);
     
-    if (customer.length === 0) {
-      return res.status(404).json({ 
-        error: 'Customer not found' 
-      });
-    }
-    
     res.json({
       success: true,
-      data: customer[0],
-      message: 'Customer updated successfully'
+      message: 'Customer updated successfully',
+      data: customer[0]
     });
   } catch (error) {
-    console.error('Error in customer PUT:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    console.error('Error updating customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });
@@ -227,8 +261,9 @@ router.delete('/:id', async (req, res) => {
     const result = await query(sqlQuery, [id]);
     
     if (result.affectedRows === 0) {
-      return res.status(404).json({ 
-        error: 'Customer not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
       });
     }
     
@@ -237,10 +272,68 @@ router.delete('/:id', async (req, res) => {
       message: 'Customer deleted successfully'
     });
   } catch (error) {
-    console.error('Error in customer DELETE:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    console.error('Error deleting customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/customers/checker/:checkerId - Get customers by checker
+router.get('/checker/:checkerId', async (req, res) => {
+  try {
+    const { checkerId } = req.params;
+    const { search, status } = req.query;
+    
+    let sqlQuery = `
+      SELECT 
+        c.*,
+        b.name as branch_name,
+        ch.full_name as checker_name
+      FROM customers c
+      LEFT JOIN branches b ON c.branch_id = b.id
+      LEFT JOIN checkers ch ON c.checker_id = ch.id
+      WHERE c.checker_id = ?
+    `;
+    
+    const params = [checkerId];
+    
+    if (search) {
+      sqlQuery += ` AND (
+        c.code LIKE ? OR 
+        c.full_name LIKE ? OR 
+        c.id_card LIKE ? OR 
+        c.nickname LIKE ? OR
+        c.guarantor_name LIKE ? OR
+        c.guarantor_id_card LIKE ? OR
+        c.guarantor_nickname LIKE ?
+      )`;
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+    
+    if (status && status !== 'all') {
+      sqlQuery += ' AND c.status = ?';
+      params.push(status);
+    }
+    
+    sqlQuery += ' ORDER BY c.created_at DESC';
+    
+    const results = await query(sqlQuery, params);
+    
+    res.json({
+      success: true,
+      data: results,
+      total: results.length
+    });
+  } catch (error) {
+    console.error('Error fetching customers by checker:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });

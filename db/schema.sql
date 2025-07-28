@@ -30,17 +30,27 @@ CREATE TABLE IF NOT EXISTS checkers (
 -- Customers table
 CREATE TABLE IF NOT EXISTS customers (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(50) UNIQUE NOT NULL,
   name VARCHAR(255) NOT NULL,
   surname VARCHAR(255),
   full_name VARCHAR(255) NOT NULL,
+  id_card VARCHAR(13) UNIQUE NOT NULL,
+  nickname VARCHAR(100),
   phone VARCHAR(20),
   email VARCHAR(255),
   address TEXT,
-  status ENUM('active', 'inactive') DEFAULT 'active',
+  guarantor_name VARCHAR(255),
+  guarantor_id_card VARCHAR(13),
+  guarantor_nickname VARCHAR(100),
+  guarantor_phone VARCHAR(20),
+  guarantor_address TEXT,
+  status ENUM('active', 'inactive', 'overdue', 'completed') DEFAULT 'active',
   branch_id BIGINT,
+  checker_id BIGINT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
+  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL,
+  FOREIGN KEY (checker_id) REFERENCES checkers(id) ON DELETE SET NULL
 );
 
 -- Products table
@@ -150,12 +160,12 @@ INSERT INTO checkers (name, surname, full_name, phone, email, branch_id) VALUES
 ('นภา', 'แสงทอง', 'นภา แสงทอง', '081-123-4567', 'napa@example.com', 3);
 
 -- Insert sample data for customers
-INSERT INTO customers (name, surname, full_name, phone, email, address, branch_id) VALUES
-('สมชาย', 'ใจดี', 'สมชาย ใจดี', '082-111-1111', 'customer1@example.com', '123 ถนนสุขุมวิท กรุงเทพฯ', 1),
-('สมหญิง', 'รักดี', 'สมหญิง รักดี', '082-222-2222', 'customer2@example.com', '456 ถนนรามคำแหง กรุงเทพฯ', 1),
-('ประยุทธ', 'มั่นคง', 'ประยุทธ มั่นคง', '082-333-3333', 'customer3@example.com', '789 ถนนลาดพร้าว กรุงเทพฯ', 2),
-('สุภาพ', 'สุจริต', 'สุภาพ สุจริต', '082-444-4444', 'customer4@example.com', '321 ถนนสุขุมวิท กรุงเทพฯ', 2),
-('วิเชียร', 'ทองคำ', 'วิเชียร ทองคำ', '082-555-5555', 'customer5@example.com', '654 ถนนรามคำแหง กรุงเทพฯ', 3);
+INSERT INTO customers (code, name, surname, full_name, id_card, nickname, phone, email, address, guarantor_name, guarantor_id_card, guarantor_nickname, guarantor_phone, guarantor_address, branch_id, checker_id) VALUES
+('CUST001', 'สมชาย', 'ใจดี', 'สมชาย ใจดี', '1234567890123', 'สมชาย', '082-111-1111', 'customer1@example.com', '123 ถนนสุขุมวิท กรุงเทพฯ', 'สมหญิง รักดี', '9876543210987', 'สมหญิง', '082-222-2222', '456 ถนนรามคำแหง กรุงเทพฯ', 1, 1),
+('CUST002', 'สมหญิง', 'รักดี', 'สมหญิง รักดี', '9876543210987', 'สมหญิง', '082-222-2222', 'customer2@example.com', '456 ถนนรามคำแหง กรุงเทพฯ', 'สมชาย ใจดี', '1234567890123', 'สมชาย', '082-111-1111', '123 ถนนสุขุมวิท กรุงเทพฯ', 1, 1),
+('CUST003', 'ประยุทธ', 'มั่นคง', 'ประยุทธ มั่นคง', '1122334455667', 'ประยุทธ', '082-333-3333', 'customer3@example.com', '789 ถนนลาดพร้าว กรุงเทพฯ', NULL, NULL, NULL, NULL, 2, 2),
+('CUST004', 'สุภาพ', 'สุจริต', 'สุภาพ สุจริต', '7788990011223', 'สุภาพ', '082-444-4444', 'customer4@example.com', '321 ถนนสุขุมวิท กรุงเทพฯ', NULL, NULL, NULL, NULL, 2, 2),
+('CUST005', 'วิเชียร', 'ทองคำ', 'วิเชียร ทองคำ', '1234567890123', 'วิเชียร', '082-555-5555', 'customer5@example.com', '654 ถนนรามคำแหง กรุงเทพฯ', NULL, NULL, NULL, NULL, 3, 3);
 
 -- Insert sample data for products
 INSERT INTO products (name, description, price, branch_id) VALUES

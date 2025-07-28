@@ -2,6 +2,62 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../db/db');
 
+// Helper function to create payment schedule
+async function createPaymentSchedule(installmentId, installmentPeriod, monthlyPayment, startDate) {
+  try {
+    console.log('🔍 Creating payment schedule:', {
+      installmentId,
+      installmentPeriod,
+      monthlyPayment,
+      startDate
+    });
+    
+    const payments = [];
+    const start = new Date(startDate);
+    
+    // Create payment records for each month
+    for (let i = 0; i < installmentPeriod; i++) {
+      const dueDate = new Date(start);
+      dueDate.setMonth(dueDate.getMonth() + i);
+      
+      // First payment is due on start date, others are monthly
+      const paymentDate = i === 0 ? start : dueDate;
+      
+      payments.push({
+        installment_id: installmentId,
+        amount: monthlyPayment,
+        payment_date: i === 0 ? paymentDate.toISOString().split('T')[0] : null, // First payment is paid
+        due_date: dueDate.toISOString().split('T')[0],
+        status: i === 0 ? 'paid' : 'pending', // First payment is paid, others are pending
+        notes: i === 0 ? 'เงินดาวน์/งวดแรก' : `งวดที่ ${i + 1}`
+      });
+    }
+    
+    // Insert all payments
+    const insertQuery = `
+      INSERT INTO payments (installment_id, amount, payment_date, due_date, status, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `;
+    
+    for (const payment of payments) {
+      await query(insertQuery, [
+        payment.installment_id,
+        payment.amount,
+        payment.payment_date,
+        payment.due_date,
+        payment.status,
+        payment.notes
+      ]);
+    }
+    
+    console.log(`✅ Created ${payments.length} payment records for installment ${installmentId}`);
+    
+  } catch (error) {
+    console.error('❌ Error creating payment schedule:', error);
+    throw error;
+  }
+}
+
 // GET /api/installments - Get all installments
 router.get('/', async (req, res) => {
   try {
@@ -182,13 +238,32 @@ router.get('/:id/payments', async (req, res) => {
       params.push(status);
     }
     
-    query += ' ORDER BY p.payment_date DESC';
+    query += ' ORDER BY p.due_date ASC';
     
     const results = await query(query, params);
+    
+    // Calculate summary
+    const totalPayments = results.length;
+    const paidPayments = results.filter(p => p.status === 'paid');
+    const pendingPayments = results.filter(p => p.status === 'pending');
+    const overduePayments = results.filter(p => {
+      if (p.status === 'paid') return false;
+      return new Date(p.dueDate) < new Date();
+    });
+    
+    const summary = {
+      totalPayments,
+      paidCount: paidPayments.length,
+      pendingCount: pendingPayments.length,
+      overdueCount: overduePayments.length,
+      paidAmount: paidPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0),
+      remainingAmount: (pendingPayments.length + overduePayments.length) * parseFloat(results[0]?.amount || 0)
+    };
     
     res.json({
       success: true,
       data: results,
+      summary,
       count: results.length
     });
   } catch (error) {
@@ -385,13 +460,95 @@ router.post('/', async (req, res) => {
     
     const installment = await query(installmentQuery, [result.insertId]);
     
+    // Create payment schedule automatically
+    console.log('🔍 Creating payment schedule for installment:', result.insertId);
+    await createPaymentSchedule(result.insertId, installmentPeriod, monthlyPayment, startDate);
+    
     res.status(201).json({
       success: true,
       data: installment[0],
-      message: 'Installment created successfully'
+      message: 'Installment created successfully with payment schedule'
     });
   } catch (error) {
     console.error('Error in installment POST:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
+});
+
+// PUT /api/installments/:id/payments/:paymentId - Update payment status
+router.put('/:id/payments/:paymentId', async (req, res) => {
+  try {
+    const { id, paymentId } = req.params;
+    const { status, paymentDate, notes, checkerId } = req.body;
+    
+    console.log('🔍 Updating payment:', { paymentId, status, paymentDate, notes, checkerId });
+    
+    // Update payment
+    const updateQuery = `
+      UPDATE payments 
+      SET status = ?, payment_date = ?, notes = ?, updated_at = NOW()
+      WHERE id = ? AND installment_id = ?
+    `;
+    
+    await query(updateQuery, [
+      status,
+      status === 'paid' ? paymentDate || new Date().toISOString().split('T')[0] : null,
+      notes,
+      paymentId,
+      id
+    ]);
+    
+    // If payment is marked as paid and checkerId is provided, create payment collection record
+    if (status === 'paid' && checkerId) {
+      const collectionQuery = `
+        INSERT INTO payment_collections (payment_id, checker_id, collection_date, created_at, updated_at)
+        VALUES (?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE 
+        checker_id = VALUES(checker_id),
+        collection_date = VALUES(collection_date),
+        updated_at = NOW()
+      `;
+      
+      await query(collectionQuery, [
+        paymentId,
+        checkerId,
+        paymentDate || new Date().toISOString().split('T')[0]
+      ]);
+    }
+    
+    // Get updated payment
+    const paymentQuery = `
+      SELECT 
+        p.id,
+        p.installment_id as installmentId,
+        p.amount,
+        p.payment_date as paymentDate,
+        p.due_date as dueDate,
+        p.status,
+        p.notes,
+        p.created_at as createdAt,
+        pc.checker_id as checkerId,
+        ch.name as checkerName,
+        ch.surname as checkerSurname,
+        ch.full_name as checkerFullName
+      FROM payments p
+      LEFT JOIN payment_collections pc ON p.id = pc.payment_id
+      LEFT JOIN checkers ch ON pc.checker_id = ch.id
+      WHERE p.id = ?
+    `;
+    
+    const payment = await query(paymentQuery, [paymentId]);
+    
+    res.json({
+      success: true,
+      data: payment[0],
+      message: 'Payment updated successfully'
+    });
+  } catch (error) {
+    console.error('Error in payment update:', error);
     res.status(500).json({ 
       error: 'Server error', 
       message: error.message 

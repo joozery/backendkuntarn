@@ -2,6 +2,39 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../db/db');
 
+// Helper function to generate unique contract number
+async function generateUniqueContractNumber() {
+  try {
+    const today = new Date();
+    const year = today.getFullYear().toString().slice(-2); // Last 2 digits of year
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    
+    // Get the latest contract number for today
+    const latestContract = await query(
+      'SELECT contract_number FROM installments WHERE contract_number LIKE ? ORDER BY contract_number DESC LIMIT 1',
+      [`CT${year}${month}${day}%`]
+    );
+    
+    let sequence = 1;
+    if (latestContract.length > 0) {
+      const lastNumber = latestContract[0].contract_number;
+      const lastSequence = parseInt(lastNumber.slice(-4)); // Get last 4 digits
+      sequence = lastSequence + 1;
+    }
+    
+    const contractNumber = `CT${year}${month}${day}${sequence.toString().padStart(4, '0')}`;
+    console.log('🔍 Generated contract number:', contractNumber);
+    
+    return contractNumber;
+  } catch (error) {
+    console.error('❌ Error generating contract number:', error);
+    // Fallback: use timestamp
+    const timestamp = Date.now().toString().slice(-8);
+    return `CT${timestamp}`;
+  }
+}
+
 // Helper function to create payment schedule
 async function createPaymentSchedule(installmentId, installmentPeriod, monthlyPayment, startDate) {
   try {
@@ -365,11 +398,28 @@ router.post('/', async (req, res) => {
       plan
     } = req.body;
     
+    // Generate unique contract number if not provided or if duplicate
+    let finalContractNumber = contractNumber;
+    if (!finalContractNumber) {
+      finalContractNumber = await generateUniqueContractNumber();
+    } else {
+      // Check if contract number already exists
+      const existingContract = await query(
+        'SELECT id FROM installments WHERE contract_number = ?',
+        [finalContractNumber]
+      );
+      
+      if (existingContract.length > 0) {
+        finalContractNumber = await generateUniqueContractNumber();
+      }
+    }
+    
+    console.log('🔍 Using contract number:', finalContractNumber);
+    
     console.log('🔍 POST /api/installments - Request body:', req.body);
     
     // Check required fields
     const requiredFields = {
-      contractNumber,
       customerId,
       productId,
       totalAmount,
@@ -412,7 +462,7 @@ router.post('/', async (req, res) => {
     const remainingAmount = totalAmount - (plan?.downPayment || 0);
     
     const params = [
-      contractNumber, customerId, productId, productName, totalAmount,
+      finalContractNumber, customerId, productId, productName, totalAmount,
       monthlyPayment, remainingAmount, installmentPeriod, startDate,
       endDate, branchId, salespersonId
     ];
@@ -466,7 +516,10 @@ router.post('/', async (req, res) => {
     
     res.status(201).json({
       success: true,
-      data: installment[0],
+      data: {
+        ...installment[0],
+        contractNumber: finalContractNumber
+      },
       message: 'Installment created successfully with payment schedule'
     });
   } catch (error) {

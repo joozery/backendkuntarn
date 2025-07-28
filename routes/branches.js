@@ -127,14 +127,8 @@ router.post('/', async (req, res) => {
     
     const params = [name, address, phone, manager, isActive !== false];
     
-    db.query(query, params, (err, result) => {
-      if (err) {
-        console.error('Error creating branch:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const result = await query(query, params);
       
       // Get the created branch
       const getQuery = `
@@ -151,22 +145,20 @@ router.post('/', async (req, res) => {
         WHERE id = ?
       `;
       
-      db.query(getQuery, [result.insertId], (err, results) => {
-        if (err) {
-          console.error('Error fetching created branch:', err);
-          return res.status(500).json({ 
-            error: 'Database error', 
-            message: err.message 
-          });
-        }
-        
-        res.status(201).json({
-          success: true,
-          message: 'Branch created successfully',
-          data: results[0]
-        });
+      const results = await query(getQuery, [result.insertId]);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Branch created successfully',
+        data: results[0]
       });
-    });
+    } catch (err) {
+      console.error('Error creating branch:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch POST:', error);
     res.status(500).json({ 
@@ -198,14 +190,8 @@ router.put('/:id', async (req, res) => {
     
     const params = [name, address, phone, manager, isActive !== false, id];
     
-    db.query(query, params, (err, result) => {
-      if (err) {
-        console.error('Error updating branch:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const result = await query(query, params);
       
       if (result.affectedRows === 0) {
         return res.status(404).json({ 
@@ -228,22 +214,20 @@ router.put('/:id', async (req, res) => {
         WHERE id = ?
       `;
       
-      db.query(getQuery, [id], (err, results) => {
-        if (err) {
-          console.error('Error fetching updated branch:', err);
-          return res.status(500).json({ 
-            error: 'Database error', 
-            message: err.message 
-          });
-        }
-        
-        res.json({
-          success: true,
-          message: 'Branch updated successfully',
-          data: results[0]
-        });
+      const results = await query(getQuery, [id]);
+      
+      res.json({
+        success: true,
+        message: 'Branch updated successfully',
+        data: results[0]
       });
-    });
+    } catch (err) {
+      console.error('Error updating branch:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch PUT:', error);
     res.status(500).json({ 
@@ -267,14 +251,8 @@ router.delete('/:id', async (req, res) => {
         (SELECT COUNT(*) FROM installments WHERE branch_id = ?) as installment_count
     `;
     
-    db.query(checkQuery, [id, id, id, id], (err, results) => {
-      if (err) {
-        console.error('Error checking branch dependencies:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(checkQuery, [id, id, id, id]);
       
       const counts = results[0];
       const totalRelated = counts.checker_count + counts.customer_count + counts.product_count + counts.installment_count;
@@ -295,27 +273,25 @@ router.delete('/:id', async (req, res) => {
       // Delete branch
       const deleteQuery = 'DELETE FROM branches WHERE id = ?';
       
-      db.query(deleteQuery, [id], (err, result) => {
-        if (err) {
-          console.error('Error deleting branch:', err);
-          return res.status(500).json({ 
-            error: 'Database error', 
-            message: err.message 
-          });
-        }
-        
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ 
-            error: 'Branch not found' 
-          });
-        }
-        
-        res.json({
-          success: true,
-          message: 'Branch deleted successfully'
+      const result = await query(deleteQuery, [id]);
+      
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ 
+          error: 'Branch not found' 
         });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Branch deleted successfully'
       });
-    });
+    } catch (err) {
+      console.error('Error deleting branch:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch DELETE:', error);
     res.status(500).json({ 
@@ -351,20 +327,20 @@ router.get('/:id/statistics', async (req, res) => {
     
     const params = [id, id, id, id, id, id, id, id, id, id, id, id, id];
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching branch statistics:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(query, params);
       
       res.json({
         success: true,
         data: results[0]
       });
-    });
+    } catch (err) {
+      console.error('Error fetching branch statistics:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch statistics GET:', error);
     res.status(500).json({ 
@@ -404,21 +380,21 @@ router.get('/:id/checkers', async (req, res) => {
     
     query += ' ORDER BY created_at DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching branch checkers:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(query, params);
       
       res.json({
         success: true,
         data: results,
         count: results.length
       });
-    });
+    } catch (err) {
+      console.error('Error fetching branch checkers:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch checkers GET:', error);
     res.status(500).json({ 
@@ -459,21 +435,21 @@ router.get('/:id/customers', async (req, res) => {
     
     query += ' ORDER BY created_at DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching branch customers:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(query, params);
       
       res.json({
         success: true,
         data: results,
         count: results.length
       });
-    });
+    } catch (err) {
+      console.error('Error fetching branch customers:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch customers GET:', error);
     res.status(500).json({ 
@@ -523,21 +499,21 @@ router.get('/:id/installments', async (req, res) => {
     
     query += ' ORDER BY i.created_at DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching branch installments:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(query, params);
       
       res.json({
         success: true,
         data: results,
         count: results.length
       });
-    });
+    } catch (err) {
+      console.error('Error fetching branch installments:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch installments GET:', error);
     res.status(500).json({ 
@@ -593,21 +569,21 @@ router.get('/:id/collections', async (req, res) => {
     
     query += ' ORDER BY pc.payment_date DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching branch collections:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(query, params);
       
       res.json({
         success: true,
         data: results,
         count: results.length
       });
-    });
+    } catch (err) {
+      console.error('Error fetching branch collections:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in branch collections GET:', error);
     res.status(500).json({ 

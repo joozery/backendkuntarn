@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db/db');
+const { query } = require('../db/db');
 
 // GET /api/checkers - Get all checkers
 router.get('/', async (req, res) => {
   try {
     const { branchId, search } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         c.id,
         c.name,
@@ -28,33 +28,32 @@ router.get('/', async (req, res) => {
     const params = [];
     
     if (branchId) {
-      query += ' AND c.branch_id = ?';
+      sqlQuery += ' AND c.branch_id = ?';
       params.push(branchId);
     }
     
     if (search) {
-      query += ' AND (c.name LIKE ? OR c.surname LIKE ? OR c.full_name LIKE ?)';
+      sqlQuery += ' AND (c.name LIKE ? OR c.surname LIKE ? OR c.full_name LIKE ?)';
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm);
     }
     
-    query += ' ORDER BY c.created_at DESC';
+    sqlQuery += ' ORDER BY c.created_at DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching checkers:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
-      
+    try {
+      const results = await query(sqlQuery, params);
       res.json({
         success: true,
         data: results,
         count: results.length
       });
-    });
+    } catch (err) {
+      console.error('Error fetching checkers:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in checkers GET:', error);
     res.status(500).json({ 
@@ -69,7 +68,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = `
+    const sqlQuery = `
       SELECT 
         c.id,
         c.name,
@@ -87,14 +86,8 @@ router.get('/:id', async (req, res) => {
       WHERE c.id = ?
     `;
     
-    db.query(query, [id], (err, results) => {
-      if (err) {
-        console.error('Error fetching checker:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(sqlQuery, [id]);
       
       if (results.length === 0) {
         return res.status(404).json({ 
@@ -106,7 +99,13 @@ router.get('/:id', async (req, res) => {
         success: true,
         data: results[0]
       });
-    });
+    } catch (err) {
+      console.error('Error fetching checker:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in checker GET by ID:', error);
     res.status(500).json({ 
@@ -129,21 +128,15 @@ router.post('/', async (req, res) => {
       });
     }
     
-    const query = `
+    const sqlQuery = `
       INSERT INTO checkers (name, surname, full_name, phone, email, branch_id, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
     `;
     
     const params = [name, surname, fullName, phone, email, branchId];
     
-    db.query(query, params, (err, result) => {
-      if (err) {
-        console.error('Error creating checker:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const result = await query(sqlQuery, params);
       
       // Get the created checker
       const getQuery = `
@@ -164,22 +157,20 @@ router.post('/', async (req, res) => {
         WHERE c.id = ?
       `;
       
-      db.query(getQuery, [result.insertId], (err, results) => {
-        if (err) {
-          console.error('Error fetching created checker:', err);
-          return res.status(500).json({ 
-            error: 'Database error', 
-            message: err.message 
-          });
-        }
-        
-        res.status(201).json({
-          success: true,
-          message: 'Checker created successfully',
-          data: results[0]
-        });
+      const results = await query(getQuery, [result.insertId]);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Checker created successfully',
+        data: results[0]
       });
-    });
+    } catch (err) {
+      console.error('Error creating checker:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in checker POST:', error);
     res.status(500).json({ 
@@ -203,7 +194,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    const query = `
+    const sqlQuery = `
       UPDATE checkers 
       SET name = ?, surname = ?, full_name = ?, phone = ?, email = ?, status = ?, updated_at = NOW()
       WHERE id = ?
@@ -211,14 +202,8 @@ router.put('/:id', async (req, res) => {
     
     const params = [name, surname, fullName, phone, email, status || 'active', id];
     
-    db.query(query, params, (err, result) => {
-      if (err) {
-        console.error('Error updating checker:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const result = await query(sqlQuery, params);
       
       if (result.affectedRows === 0) {
         return res.status(404).json({ 
@@ -245,22 +230,20 @@ router.put('/:id', async (req, res) => {
         WHERE c.id = ?
       `;
       
-      db.query(getQuery, [id], (err, results) => {
-        if (err) {
-          console.error('Error fetching updated checker:', err);
-          return res.status(500).json({ 
-            error: 'Database error', 
-            message: err.message 
-          });
-        }
-        
-        res.json({
-          success: true,
-          message: 'Checker updated successfully',
-          data: results[0]
-        });
+      const results = await query(getQuery, [id]);
+      
+      res.json({
+        success: true,
+        message: 'Checker updated successfully',
+        data: results[0]
       });
-    });
+    } catch (err) {
+      console.error('Error updating checker:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in checker PUT:', error);
     res.status(500).json({ 
@@ -275,16 +258,10 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = 'DELETE FROM checkers WHERE id = ?';
+    const sqlQuery = 'DELETE FROM checkers WHERE id = ?';
     
-    db.query(query, [id], (err, result) => {
-      if (err) {
-        console.error('Error deleting checker:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const result = await query(sqlQuery, [id]);
       
       if (result.affectedRows === 0) {
         return res.status(404).json({ 
@@ -296,7 +273,13 @@ router.delete('/:id', async (req, res) => {
         success: true,
         message: 'Checker deleted successfully'
       });
-    });
+    } catch (err) {
+      console.error('Error deleting checker:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in checker DELETE:', error);
     res.status(500).json({ 
@@ -312,7 +295,7 @@ router.get('/:id/collections', async (req, res) => {
     const { id } = req.params;
     const { month, year, status } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         pc.id,
         pc.checker_id as checkerId,
@@ -341,32 +324,32 @@ router.get('/:id/collections', async (req, res) => {
     const params = [id];
     
     if (month && year) {
-      query += ' AND MONTH(pc.payment_date) = ? AND YEAR(pc.payment_date) = ?';
+      sqlQuery += ' AND MONTH(pc.payment_date) = ? AND YEAR(pc.payment_date) = ?';
       params.push(month, year);
     }
     
     if (status) {
-      query += ' AND pc.status = ?';
+      sqlQuery += ' AND pc.status = ?';
       params.push(status);
     }
     
-    query += ' ORDER BY pc.payment_date DESC';
+    sqlQuery += ' ORDER BY pc.payment_date DESC';
     
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error('Error fetching collections:', err);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          message: err.message 
-        });
-      }
+    try {
+      const results = await query(sqlQuery, params);
       
       res.json({
         success: true,
         data: results,
         count: results.length
       });
-    });
+    } catch (err) {
+      console.error('Error fetching collections:', err);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: err.message 
+      });
+    }
   } catch (error) {
     console.error('Error in collections GET:', error);
     res.status(500).json({ 

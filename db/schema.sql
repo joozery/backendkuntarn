@@ -71,11 +71,13 @@ CREATE TABLE IF NOT EXISTS installments (
   end_date DATE NOT NULL,
   status ENUM('active', 'completed', 'cancelled', 'overdue') DEFAULT 'active',
   branch_id INT,
+  salesperson_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
+  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL,
+  FOREIGN KEY (salesperson_id) REFERENCES employees(id) ON DELETE SET NULL
 );
 
 -- Payments table (scheduled payments)

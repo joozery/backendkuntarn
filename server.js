@@ -12,11 +12,13 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Import routes
+const branchesRoutes = require('./routes/branches');
 const checkersRoutes = require('./routes/checkers');
 const customersRoutes = require('./routes/customers');
 const installmentsRoutes = require('./routes/installments');
 
 // Use routes
+app.use('/api/branches', branchesRoutes);
 app.use('/api/checkers', checkersRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/installments', installmentsRoutes);

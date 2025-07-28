@@ -5,7 +5,7 @@ const db = require('../db/db');
 // GET /api/installments - Get all installments
 router.get('/', async (req, res) => {
   try {
-    const { branchId, status, customerId, search } = req.query;
+    const { branchId, status, customerId, search, month, year } = req.query;
     
     let query = `
       SELECT 
@@ -27,13 +27,18 @@ router.get('/', async (req, res) => {
         c.surname as customerSurname,
         c.full_name as customerFullName,
         c.phone as customerPhone,
+        c.address as customerAddress,
         p.name as productName,
         p.price as productPrice,
-        b.name as branchName
+        b.name as branchName,
+        e.name as salespersonName,
+        e.surname as salespersonSurname,
+        e.full_name as salespersonFullName
       FROM installments i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN products p ON i.product_id = p.id
       LEFT JOIN branches b ON i.branch_id = b.id
+      LEFT JOIN employees e ON i.salesperson_id = e.id
       WHERE 1=1
     `;
     
@@ -52,6 +57,11 @@ router.get('/', async (req, res) => {
     if (customerId) {
       query += ' AND i.customer_id = ?';
       params.push(customerId);
+    }
+    
+    if (month && year) {
+      query += ' AND MONTH(i.created_at) = ? AND YEAR(i.created_at) = ?';
+      params.push(month, year);
     }
     
     if (search) {

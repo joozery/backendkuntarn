@@ -520,19 +520,34 @@ router.post('/', async (req, res) => {
     
     const installment = await query(installmentQuery, [result.insertId]);
     
-    // Create payment schedule automatically
-    console.log('🔍 Creating payment schedule for installment:', result.insertId);
-    await createPaymentSchedule(result.insertId, installmentPeriod, monthlyPayment, startDate);
-    
-    res.status(201).json({
-      success: true,
-      data: {
-        ...installment[0],
-        contractNumber: finalContractNumber
-      },
-      message: 'Installment created successfully with payment schedule',
-      warning: contractNumberWarning
-    });
+    // Create payment schedule automatically (if payments table exists)
+    try {
+      console.log('🔍 Creating payment schedule for installment:', result.insertId);
+      await createPaymentSchedule(result.insertId, installmentPeriod, monthlyPayment, startDate);
+      
+      res.status(201).json({
+        success: true,
+        data: {
+          ...installment[0],
+          contractNumber: finalContractNumber
+        },
+        message: 'Installment created successfully with payment schedule',
+        warning: contractNumberWarning
+      });
+    } catch (paymentError) {
+      console.log('⚠️ Payment schedule creation failed, but installment was created:', paymentError.message);
+      
+      res.status(201).json({
+        success: true,
+        data: {
+          ...installment[0],
+          contractNumber: finalContractNumber
+        },
+        message: 'Installment created successfully (payment schedule will be created when database is updated)',
+        warning: contractNumberWarning,
+        paymentScheduleWarning: 'Payment schedule creation failed. Please run database setup script.'
+      });
+    }
   } catch (error) {
     console.error('Error in installment POST:', error);
     res.status(500).json({ 

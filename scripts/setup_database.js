@@ -3,6 +3,7 @@ const { updateCustomersSchema } = require('./update_customers_schema');
 const { updateEmployeesSchema } = require('./update_employees_schema');
 const createSampleCheckers = require('./create_sample_checkers');
 const updateInstallmentsSchema = require('./update_installments_schema');
+const { createPaymentsTables } = require('./create_payments_tables');
 
 async function setupDatabase() {
   try {
@@ -33,6 +34,11 @@ async function setupDatabase() {
     await updateInstallmentsSchema();
     console.log('✅ เสร็จสิ้น\n');
 
+    // 6. สร้างตาราง payments
+    console.log('📋 ขั้นตอนที่ 6: สร้างตาราง payments');
+    await createPaymentsTables();
+    console.log('✅ เสร็จสิ้น\n');
+
     console.log('🎉 การตั้งค่าฐานข้อมูลเสร็จสิ้น!');
     console.log('\n📊 สรุปการทำงาน:');
     console.log('✅ สร้างตาราง products, installments, payments, payment_collections');
@@ -40,6 +46,7 @@ async function setupDatabase() {
     console.log('✅ เพิ่มฟิลด์ใหม่ในตาราง employees');
     console.log('✅ สร้างข้อมูลตัวอย่าง checkers');
     console.log('✅ อัปเดต installments schema สำหรับข้อมูลใหม่');
+    console.log('✅ สร้างตาราง payments และ payment_collections');
     console.log('✅ สร้าง indexes สำหรับประสิทธิภาพ');
     console.log('✅ เพิ่มข้อมูลตัวอย่าง');
     

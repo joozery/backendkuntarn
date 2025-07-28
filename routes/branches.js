@@ -7,7 +7,7 @@ router.get('/', async (req, res) => {
   try {
     const { status, search } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         id,
         name,
@@ -24,20 +24,20 @@ router.get('/', async (req, res) => {
     const params = [];
     
     if (status) {
-      query += ' AND is_active = ?';
+      sqlQuery += ' AND is_active = ?';
       params.push(status === 'active' ? 1 : 0);
     }
     
     if (search) {
-      query += ' AND (name LIKE ? OR address LIKE ? OR manager LIKE ?)';
+      sqlQuery += ' AND (name LIKE ? OR address LIKE ? OR manager LIKE ?)';
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm);
     }
     
-    query += ' ORDER BY created_at DESC';
+    sqlQuery += ' ORDER BY created_at DESC';
     
     try {
-      const results = await query(query, params);
+      const results = await query(sqlQuery, params);
       res.json({
         success: true,
         data: results,
@@ -64,7 +64,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = `
+    const sqlQuery = `
       SELECT 
         id,
         name,
@@ -79,7 +79,7 @@ router.get('/:id', async (req, res) => {
     `;
     
     try {
-      const results = await query(query, [id]);
+      const results = await query(sqlQuery, [id]);
       
       if (results.length === 0) {
         return res.status(404).json({ 
@@ -120,7 +120,7 @@ router.post('/', async (req, res) => {
       });
     }
     
-    const query = `
+    const sqlQuery = `
       INSERT INTO branches (name, address, phone, manager, is_active, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, NOW(), NOW())
     `;
@@ -128,7 +128,7 @@ router.post('/', async (req, res) => {
     const params = [name, address, phone, manager, isActive !== false];
     
     try {
-      const result = await query(query, params);
+      const result = await query(sqlQuery, params);
       
       // Get the created branch
       const getQuery = `
@@ -182,7 +182,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    const query = `
+    const sqlQuery = `
       UPDATE branches 
       SET name = ?, address = ?, phone = ?, manager = ?, is_active = ?, updated_at = NOW()
       WHERE id = ?
@@ -191,7 +191,7 @@ router.put('/:id', async (req, res) => {
     const params = [name, address, phone, manager, isActive !== false, id];
     
     try {
-      const result = await query(query, params);
+      const result = await query(sqlQuery, params);
       
       if (result.affectedRows === 0) {
         return res.status(404).json({ 
@@ -306,7 +306,7 @@ router.get('/:id/statistics', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = `
+    const sqlQuery = `
       SELECT 
         (SELECT COUNT(*) FROM checkers WHERE branch_id = ?) as total_checkers,
         (SELECT COUNT(*) FROM checkers WHERE branch_id = ? AND status = 'active') as active_checkers,
@@ -328,7 +328,7 @@ router.get('/:id/statistics', async (req, res) => {
     const params = [id, id, id, id, id, id, id, id, id, id, id, id, id];
     
     try {
-      const results = await query(query, params);
+      const results = await query(sqlQuery, params);
       
       res.json({
         success: true,
@@ -356,7 +356,7 @@ router.get('/:id/checkers', async (req, res) => {
     const { id } = req.params;
     const { status } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         id,
         name,
@@ -374,14 +374,14 @@ router.get('/:id/checkers', async (req, res) => {
     const params = [id];
     
     if (status) {
-      query += ' AND status = ?';
+      sqlQuery += ' AND status = ?';
       params.push(status);
     }
     
-    query += ' ORDER BY created_at DESC';
+    sqlQuery += ' ORDER BY created_at DESC';
     
     try {
-      const results = await query(query, params);
+      const results = await query(sqlQuery, params);
       
       res.json({
         success: true,
@@ -410,7 +410,7 @@ router.get('/:id/customers', async (req, res) => {
     const { id } = req.params;
     const { status } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         id,
         name,
@@ -429,14 +429,14 @@ router.get('/:id/customers', async (req, res) => {
     const params = [id];
     
     if (status) {
-      query += ' AND status = ?';
+      sqlQuery += ' AND status = ?';
       params.push(status);
     }
     
-    query += ' ORDER BY created_at DESC';
+    sqlQuery += ' ORDER BY created_at DESC';
     
     try {
-      const results = await query(query, params);
+      const results = await query(sqlQuery, params);
       
       res.json({
         success: true,
@@ -465,7 +465,7 @@ router.get('/:id/installments', async (req, res) => {
     const { id } = req.params;
     const { status } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         i.id,
         i.contract_number as contractNumber,
@@ -493,14 +493,14 @@ router.get('/:id/installments', async (req, res) => {
     const params = [id];
     
     if (status) {
-      query += ' AND i.status = ?';
+      sqlQuery += ' AND i.status = ?';
       params.push(status);
     }
     
-    query += ' ORDER BY i.created_at DESC';
+    sqlQuery += ' ORDER BY i.created_at DESC';
     
     try {
-      const results = await query(query, params);
+      const results = await query(sqlQuery, params);
       
       res.json({
         success: true,
@@ -529,7 +529,7 @@ router.get('/:id/collections', async (req, res) => {
     const { id } = req.params;
     const { month, year, status } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         pc.id,
         pc.checker_id as checkerId,
@@ -558,19 +558,19 @@ router.get('/:id/collections', async (req, res) => {
     const params = [id];
     
     if (month && year) {
-      query += ' AND MONTH(pc.payment_date) = ? AND YEAR(pc.payment_date) = ?';
+      sqlQuery += ' AND MONTH(pc.payment_date) = ? AND YEAR(pc.payment_date) = ?';
       params.push(month, year);
     }
     
     if (status) {
-      query += ' AND pc.status = ?';
+      sqlQuery += ' AND pc.status = ?';
       params.push(status);
     }
     
-    query += ' ORDER BY pc.payment_date DESC';
+    sqlQuery += ' ORDER BY pc.payment_date DESC';
     
     try {
-      const results = await query(query, params);
+      const results = await query(sqlQuery, params);
       
       res.json({
         success: true,

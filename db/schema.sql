@@ -2,7 +2,7 @@
 
 -- Branches table
 CREATE TABLE IF NOT EXISTS branches (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   address TEXT,
   phone VARCHAR(20),
@@ -14,14 +14,14 @@ CREATE TABLE IF NOT EXISTS branches (
 
 -- Checkers table
 CREATE TABLE IF NOT EXISTS checkers (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   surname VARCHAR(255),
   full_name VARCHAR(255) NOT NULL,
   phone VARCHAR(20),
   email VARCHAR(255),
   status ENUM('active', 'inactive') DEFAULT 'active',
-  branch_id INT,
+  branch_id BIGINT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS checkers (
 
 -- Customers table
 CREATE TABLE IF NOT EXISTS customers (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   surname VARCHAR(255),
   full_name VARCHAR(255) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS customers (
   email VARCHAR(255),
   address TEXT,
   status ENUM('active', 'inactive') DEFAULT 'active',
-  branch_id INT,
+  branch_id BIGINT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
@@ -45,12 +45,12 @@ CREATE TABLE IF NOT EXISTS customers (
 
 -- Products table
 CREATE TABLE IF NOT EXISTS products (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   price DECIMAL(10,2) NOT NULL,
   status ENUM('active', 'inactive') DEFAULT 'active',
-  branch_id INT,
+  branch_id BIGINT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
@@ -58,10 +58,10 @@ CREATE TABLE IF NOT EXISTS products (
 
 -- Installments table
 CREATE TABLE IF NOT EXISTS installments (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
   contract_number VARCHAR(50) UNIQUE NOT NULL,
-  customer_id INT NOT NULL,
-  product_id INT,
+  customer_id BIGINT NOT NULL,
+  product_id BIGINT,
   product_name VARCHAR(255),
   total_amount DECIMAL(10,2) NOT NULL,
   installment_amount DECIMAL(10,2) NOT NULL,
@@ -70,8 +70,8 @@ CREATE TABLE IF NOT EXISTS installments (
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
   status ENUM('active', 'completed', 'cancelled', 'overdue') DEFAULT 'active',
-  branch_id INT,
-  salesperson_id INT,
+  branch_id BIGINT,
+  salesperson_id BIGINT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
@@ -82,8 +82,8 @@ CREATE TABLE IF NOT EXISTS installments (
 
 -- Payments table (scheduled payments)
 CREATE TABLE IF NOT EXISTS payments (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  installment_id INT NOT NULL,
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  installment_id BIGINT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
   payment_date DATE,
   due_date DATE NOT NULL,
@@ -94,13 +94,29 @@ CREATE TABLE IF NOT EXISTS payments (
   FOREIGN KEY (installment_id) REFERENCES installments(id) ON DELETE CASCADE
 );
 
+-- Employees table
+CREATE TABLE IF NOT EXISTS employees (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  surname VARCHAR(255),
+  full_name VARCHAR(255) NOT NULL,
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  position VARCHAR(255),
+  status ENUM('active', 'inactive') DEFAULT 'active',
+  branch_id BIGINT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
+);
+
 -- Payment Collections table (actual collections by checkers)
 CREATE TABLE IF NOT EXISTS payment_collections (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  checker_id INT NOT NULL,
-  customer_id INT NOT NULL,
-  installment_id INT NOT NULL,
-  payment_id INT, -- Optional: link to scheduled payment
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  checker_id BIGINT NOT NULL,
+  customer_id BIGINT NOT NULL,
+  installment_id BIGINT NOT NULL,
+  payment_id BIGINT, -- Optional: link to scheduled payment
   amount DECIMAL(10,2) NOT NULL,
   payment_date DATE NOT NULL,
   status ENUM('completed', 'pending', 'cancelled') DEFAULT 'completed',

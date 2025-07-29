@@ -182,6 +182,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN products p ON i.product_id = p.id
       LEFT JOIN branches b ON i.branch_id = b.id
       LEFT JOIN employees e ON i.salesperson_id = e.id
+      LEFT JOIN checkers ch ON i.inspector_id = ch.id
       WHERE 1=1
     `;
     
@@ -220,6 +221,9 @@ router.get('/', async (req, res) => {
     // Build structured objects from individual fields
     const processedResults = results.map(result => ({
       ...result,
+      // Add employee information for frontend
+      employeeName: result.salespersonFullName || result.salespersonName || 'ไม่ระบุ',
+      inspectorName: result.inspectorFullName || result.inspectorName || 'ไม่ระบุ',
       customerDetails: {
         title: result.customerTitle,
         age: result.customerAge,

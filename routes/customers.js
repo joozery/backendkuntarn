@@ -312,14 +312,18 @@ router.get('/checker/:checkerId', async (req, res) => {
     const { checkerId } = req.params;
     const { search, status } = req.query;
     
+    // Get customers directly linked to checker
     let sqlQuery = `
-      SELECT 
+      SELECT DISTINCT
         c.*,
         b.name as branch_name,
-        ch.full_name as checker_name
+        ch.full_name as checker_name,
+        COUNT(i.id) as contract_count,
+        SUM(i.total_amount) as total_contracts_amount
       FROM customers c
       LEFT JOIN branches b ON c.branch_id = b.id
       LEFT JOIN checkers ch ON c.checker_id = ch.id
+      LEFT JOIN installments i ON c.id = i.customer_id
       WHERE c.checker_id = ?
     `;
     
@@ -344,9 +348,11 @@ router.get('/checker/:checkerId', async (req, res) => {
       params.push(status);
     }
     
-    sqlQuery += ' ORDER BY c.created_at DESC';
+    sqlQuery += ' GROUP BY c.id ORDER BY c.created_at DESC';
     
     const results = await query(sqlQuery, params);
+    
+    console.log(`🔍 Found ${results.length} customers for checker ${checkerId}`);
     
     res.json({
       success: true,
@@ -355,6 +361,72 @@ router.get('/checker/:checkerId', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching customers by checker:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/customers/checker/:checkerId/contracts - Get customers with contracts by checker
+router.get('/checker/:checkerId/contracts', async (req, res) => {
+  try {
+    const { checkerId } = req.params;
+    const { search, status } = req.query;
+    
+    // Get customers who have contracts and payments collected by this checker
+    let sqlQuery = `
+      SELECT DISTINCT
+        c.*,
+        b.name as branch_name,
+        ch.full_name as checker_name,
+        COUNT(DISTINCT i.id) as contract_count,
+        SUM(i.total_amount) as total_contracts_amount,
+        COUNT(DISTINCT pc.id) as collection_count,
+        SUM(pc.amount) as total_collected_amount
+      FROM customers c
+      LEFT JOIN branches b ON c.branch_id = b.id
+      LEFT JOIN checkers ch ON c.checker_id = ch.id
+      LEFT JOIN installments i ON c.id = i.customer_id
+      LEFT JOIN payment_collections pc ON (c.id = pc.customer_id AND pc.checker_id = ?)
+      WHERE c.checker_id = ? OR pc.checker_id = ?
+    `;
+    
+    const params = [checkerId, checkerId, checkerId];
+    
+    if (search) {
+      sqlQuery += ` AND (
+        c.code LIKE ? OR 
+        c.full_name LIKE ? OR 
+        c.id_card LIKE ? OR 
+        c.nickname LIKE ? OR
+        c.guarantor_name LIKE ? OR
+        c.guarantor_id_card LIKE ? OR
+        c.guarantor_nickname LIKE ?
+      )`;
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+    
+    if (status && status !== 'all') {
+      sqlQuery += ' AND c.status = ?';
+      params.push(status);
+    }
+    
+    sqlQuery += ' GROUP BY c.id ORDER BY c.created_at DESC';
+    
+    const results = await query(sqlQuery, params);
+    
+    console.log(`🔍 Found ${results.length} customers with contracts for checker ${checkerId}`);
+    
+    res.json({
+      success: true,
+      data: results,
+      total: results.length
+    });
+  } catch (error) {
+    console.error('Error fetching customers with contracts by checker:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

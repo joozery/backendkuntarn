@@ -378,7 +378,7 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
     console.log('🔍 Getting customers for checker:', checkerId);
     
     // Build the base query
-    let query = `
+    let sqlQuery = `
       SELECT DISTINCT
         c.id,
         c.code,
@@ -405,7 +405,7 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
     
     // Add search filter
     if (search) {
-      query += ` AND (
+      sqlQuery += ` AND (
         c.code LIKE ? OR 
         c.name LIKE ? OR 
         c.surname LIKE ? OR 
@@ -419,25 +419,25 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
     
     // Add status filter
     if (status && status !== 'all') {
-      query += ` AND i.status = ?`;
+      sqlQuery += ` AND i.status = ?`;
       queryParams.push(status);
     }
     
     // Group by customer
-    query += ` GROUP BY c.id`;
+    sqlQuery += ` GROUP BY c.id`;
     
     // Add order by
-    query += ` ORDER BY c.full_name ASC`;
+    sqlQuery += ` ORDER BY c.full_name ASC`;
     
     // Add pagination
     const offset = (page - 1) * limit;
-    query += ` LIMIT ? OFFSET ?`;
+    sqlQuery += ` LIMIT ? OFFSET ?`;
     queryParams.push(parseInt(limit), offset);
     
-    console.log('🔍 Query:', query);
+    console.log('🔍 Query:', sqlQuery);
     console.log('🔍 Params:', queryParams);
     
-    const customers = await query(query, queryParams);
+    const customers = await query(sqlQuery, queryParams);
     
     // Get total count for pagination
     let countQuery = `

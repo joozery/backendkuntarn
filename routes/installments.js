@@ -46,6 +46,56 @@ async function generateUniqueContractNumber() {
   }
 }
 
+// Helper function to update inventory stock when product is sold
+async function updateInventoryStock(productId, branchId, sellDate, sellingCost) {
+  try {
+    console.log('🔍 Updating inventory stock for product:', productId, 'branch:', branchId);
+    
+    // First, get the product code from products table
+    const getProductQuery = 'SELECT name FROM products WHERE id = ?';
+    const productResult = await query(getProductQuery, [productId]);
+    
+    if (productResult.length === 0) {
+      console.log('⚠️ Product not found:', productId);
+      return false;
+    }
+    
+    const productName = productResult[0].name;
+    
+    // Update inventory: decrease remaining quantity, increase sold quantity, set sell date and selling cost
+    const updateQuery = `
+      UPDATE inventory 
+      SET 
+        sold_quantity = sold_quantity + 1,
+        remaining_quantity1 = GREATEST(remaining_quantity1 - 1, 0),
+        remaining_quantity2 = GREATEST(remaining_quantity2 - 1, 0),
+        sell_date = ?,
+        selling_cost = ?,
+        status = CASE 
+          WHEN remaining_quantity1 - 1 <= 0 THEN 'sold'
+          ELSE 'active'
+        END,
+        updated_at = NOW()
+      WHERE product_name = ? AND branch_id = ? AND remaining_quantity1 > 0
+      ORDER BY receive_date ASC
+      LIMIT 1
+    `;
+    
+    const result = await query(updateQuery, [sellDate, sellingCost, productName, branchId]);
+    
+    if (result.affectedRows > 0) {
+      console.log('✅ Inventory stock updated successfully for product:', productId);
+      return true;
+    } else {
+      console.log('⚠️ No inventory record found for product:', productId, 'branch:', branchId);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error updating inventory stock:', error);
+    return false;
+  }
+}
+
 // Helper function to create payment schedule
 async function createPaymentSchedule(installmentId, installmentPeriod, monthlyPayment, startDate) {
   try {
@@ -1009,6 +1059,16 @@ router.post('/', async (req, res) => {
       }
     };
     
+    // Update inventory stock when product is sold
+    try {
+      console.log('🔍 Updating inventory stock for product:', productId);
+      const sellDate = contractDate || new Date().toISOString().split('T')[0];
+      const sellingCost = totalAmount || 0;
+      await updateInventoryStock(productId, branchId, sellDate, sellingCost);
+    } catch (inventoryError) {
+      console.log('⚠️ Inventory stock update failed, but installment was created:', inventoryError.message);
+    }
+    
     // Create payment schedule automatically (if payments table exists)
     try {
       console.log('🔍 Creating payment schedule for installment:', result.insertId);
@@ -1295,6 +1355,16 @@ router.put('/:id', async (req, res) => {
       finalDownPayment, finalMonthlyPayment, finalMonths, finalCollectionDate, id
     ]);
     
+    // Update inventory stock when product is changed or contract is updated
+    try {
+      console.log('🔍 Updating inventory stock for product:', finalProductId);
+      const sellDate = finalContractDate || new Date().toISOString().split('T')[0];
+      const sellingCost = finalTotalAmount || 0;
+      await updateInventoryStock(finalProductId, selectedBranch, sellDate, sellingCost);
+    } catch (inventoryError) {
+      console.log('⚠️ Inventory stock update failed during contract update:', inventoryError.message);
+    }
+    
     // Get the updated installment
     const installmentQuery = `
       SELECT 
@@ -1362,10 +1432,61 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// Helper function to restore inventory stock when contract is deleted
+async function restoreInventoryStock(productId, branchId) {
+  try {
+    console.log('🔍 Restoring inventory stock for product:', productId, 'branch:', branchId);
+    
+    // First, get the product name from products table
+    const getProductQuery = 'SELECT name FROM products WHERE id = ?';
+    const productResult = await query(getProductQuery, [productId]);
+    
+    if (productResult.length === 0) {
+      console.log('⚠️ Product not found:', productId);
+      return false;
+    }
+    
+    const productName = productResult[0].name;
+    
+    // Restore inventory: increase remaining quantity, decrease sold quantity, clear sell date and selling cost
+    const updateQuery = `
+      UPDATE inventory 
+      SET 
+        sold_quantity = GREATEST(sold_quantity - 1, 0),
+        remaining_quantity1 = remaining_quantity1 + 1,
+        remaining_quantity2 = remaining_quantity2 + 1,
+        sell_date = NULL,
+        selling_cost = 0,
+        status = 'active',
+        updated_at = NOW()
+      WHERE product_name = ? AND branch_id = ? AND sold_quantity > 0
+      ORDER BY sell_date DESC
+      LIMIT 1
+    `;
+    
+    const result = await query(updateQuery, [productName, branchId]);
+    
+    if (result.affectedRows > 0) {
+      console.log('✅ Inventory stock restored successfully for product:', productId);
+      return true;
+    } else {
+      console.log('⚠️ No inventory record found for product:', productId, 'branch:', branchId);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error restoring inventory stock:', error);
+    return false;
+  }
+}
+
 // DELETE /api/installments/:id - Delete installment
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Get product info before deleting
+    const getProductQuery = 'SELECT product_id, branch_id FROM installments WHERE id = ?';
+    const productInfo = await query(getProductQuery, [id]);
     
     const sqlQuery = 'DELETE FROM installments WHERE id = ?';
     const result = await query(sqlQuery, [id]);
@@ -1374,6 +1495,16 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ 
         error: 'Installment not found' 
       });
+    }
+    
+    // Restore inventory stock when contract is deleted
+    if (productInfo.length > 0) {
+      try {
+        console.log('🔍 Restoring inventory stock for deleted contract');
+        await restoreInventoryStock(productInfo[0].product_id, productInfo[0].branch_id);
+      } catch (inventoryError) {
+        console.log('⚠️ Inventory stock restoration failed during contract deletion:', inventoryError.message);
+      }
     }
     
     res.json({

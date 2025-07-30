@@ -393,9 +393,9 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         c.email,
         c.address,
         c.status,
-        c.guarantor_name,
-        c.guarantor_id_card,
-        c.guarantor_nickname,
+        i.guarantor_name,
+        i.guarantor_id_card,
+        i.guarantor_nickname,
         COUNT(i.id) as contract_count,
         SUM(i.total_amount) as total_contracts_amount,
         MAX(i.contract_date) as latest_contract_date,
@@ -445,6 +445,13 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
     console.log('🔍 Params:', queryParams);
     
     const customers = await query(sqlQuery, queryParams);
+    
+    console.log('🔍 Raw customers data from DB:', customers);
+    console.log('🔍 First customer guarantor data:', customers[0] ? {
+      guarantor_name: customers[0].guarantor_name,
+      guarantor_id_card: customers[0].guarantor_id_card,
+      guarantor_nickname: customers[0].guarantor_nickname
+    } : 'No customers');
     
     // Get total count for pagination
     let countQuery = `

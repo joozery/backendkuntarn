@@ -369,68 +369,130 @@ router.get('/checker/:checkerId', async (req, res) => {
   }
 });
 
-// GET /api/customers/checker/:checkerId/contracts - Get customers with contracts by checker
+// GET /api/customers/checker/:checkerId/contracts - Get customers with contracts for a specific checker
 router.get('/checker/:checkerId/contracts', async (req, res) => {
   try {
     const { checkerId } = req.params;
-    const { search, status } = req.query;
+    const { search, status, page = 1, limit = 25 } = req.query;
     
-    // Get customers who have contracts and payments collected by this checker
-    let sqlQuery = `
+    console.log('🔍 Getting customers for checker:', checkerId);
+    
+    // Build the base query
+    let query = `
       SELECT DISTINCT
-        c.*,
-        b.name as branch_name,
-        ch.full_name as checker_name,
-        COUNT(DISTINCT i.id) as contract_count,
+        c.id,
+        c.code,
+        c.name,
+        c.surname,
+        c.full_name,
+        c.nickname,
+        c.id_card,
+        c.phone1,
+        c.phone2,
+        c.phone3,
+        c.email,
+        c.address,
+        c.status,
+        COUNT(i.id) as contract_count,
         SUM(i.total_amount) as total_contracts_amount,
-        COUNT(DISTINCT pc.id) as collection_count,
-        SUM(pc.amount) as total_collected_amount
+        MAX(i.contract_date) as latest_contract_date
       FROM customers c
-      LEFT JOIN branches b ON c.branch_id = b.id
-      LEFT JOIN checkers ch ON c.checker_id = ch.id
-      LEFT JOIN installments i ON c.id = i.customer_id
-      LEFT JOIN payment_collections pc ON (c.id = pc.customer_id AND pc.checker_id = ?)
-      WHERE c.checker_id = ? OR pc.checker_id = ?
+      INNER JOIN installments i ON c.id = i.customer_id
+      WHERE i.inspector_id = ?
     `;
     
-    const params = [checkerId, checkerId, checkerId];
+    const queryParams = [checkerId];
+    
+    // Add search filter
+    if (search) {
+      query += ` AND (
+        c.code LIKE ? OR 
+        c.name LIKE ? OR 
+        c.surname LIKE ? OR 
+        c.full_name LIKE ? OR 
+        c.nickname LIKE ? OR 
+        c.id_card LIKE ?
+      )`;
+      const searchParam = `%${search}%`;
+      queryParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
+    }
+    
+    // Add status filter
+    if (status && status !== 'all') {
+      query += ` AND i.status = ?`;
+      queryParams.push(status);
+    }
+    
+    // Group by customer
+    query += ` GROUP BY c.id`;
+    
+    // Add order by
+    query += ` ORDER BY c.full_name ASC`;
+    
+    // Add pagination
+    const offset = (page - 1) * limit;
+    query += ` LIMIT ? OFFSET ?`;
+    queryParams.push(parseInt(limit), offset);
+    
+    console.log('🔍 Query:', query);
+    console.log('🔍 Params:', queryParams);
+    
+    const customers = await query(query, queryParams);
+    
+    // Get total count for pagination
+    let countQuery = `
+      SELECT COUNT(DISTINCT c.id) as total
+      FROM customers c
+      INNER JOIN installments i ON c.id = i.customer_id
+      WHERE i.inspector_id = ?
+    `;
+    
+    const countParams = [checkerId];
     
     if (search) {
-      sqlQuery += ` AND (
+      countQuery += ` AND (
         c.code LIKE ? OR 
+        c.name LIKE ? OR 
+        c.surname LIKE ? OR 
         c.full_name LIKE ? OR 
-        c.id_card LIKE ? OR 
-        c.nickname LIKE ? OR
-        c.guarantor_name LIKE ? OR
-        c.guarantor_id_card LIKE ? OR
-        c.guarantor_nickname LIKE ?
+        c.nickname LIKE ? OR 
+        c.id_card LIKE ?
       )`;
-      const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+      const searchParam = `%${search}%`;
+      countParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
     }
     
     if (status && status !== 'all') {
-      sqlQuery += ' AND c.status = ?';
-      params.push(status);
+      countQuery += ` AND i.status = ?`;
+      countParams.push(status);
     }
     
-    sqlQuery += ' GROUP BY c.id ORDER BY c.created_at DESC';
+    const countResult = await query(countQuery, countParams);
+    const total = countResult[0]?.total || 0;
     
-    const results = await query(sqlQuery, params);
-    
-    console.log(`🔍 Found ${results.length} customers with contracts for checker ${checkerId}`);
+    // Get checker info
+    const checkerQuery = 'SELECT id, name, surname, full_name FROM checkers WHERE id = ?';
+    const checkerResult = await query(checkerQuery, [checkerId]);
+    const checker = checkerResult[0];
     
     res.json({
       success: true,
-      data: results,
-      total: results.length
+      data: customers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limit)
+      },
+      checker,
+      message: `Found ${customers.length} customers for checker ${checker?.full_name || checkerId}`
     });
+    
   } catch (error) {
-    console.error('Error fetching customers with contracts by checker:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
+    console.error('Error getting customers for checker:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
     });
   }
 });

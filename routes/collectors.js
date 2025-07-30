@@ -70,8 +70,17 @@ router.get('/', async (req, res) => {
     
     // Get total count for pagination
     const countQuery = sqlQuery.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
-    const countResult = await query(countQuery, params);
-    const totalItems = countResult[0].total;
+    let countResult;
+    let totalItems = 0;
+    
+    try {
+      countResult = await query(countQuery, params);
+      totalItems = countResult[0]?.total || 0;
+    } catch (err) {
+      console.log('Count query failed, table might not exist yet:', err.message);
+      totalItems = 0;
+    }
+    
     const totalPages = Math.ceil(totalItems / limit);
     const offset = (page - 1) * limit;
     
@@ -84,7 +93,7 @@ router.get('/', async (req, res) => {
       
       res.json({
         success: true,
-        data: results,
+        data: results || [],
         pagination: {
           currentPage: parseInt(page),
           totalPages,
@@ -96,6 +105,21 @@ router.get('/', async (req, res) => {
       });
     } catch (err) {
       console.error('Error fetching collectors:', err);
+      // Return empty data if table doesn't exist
+      if (err.message.includes('doesn\'t exist') || err.message.includes('Unknown table')) {
+        return res.json({
+          success: true,
+          data: [],
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: 0,
+            totalItems: 0,
+            itemsPerPage: parseInt(limit),
+            hasNextPage: false,
+            hasPrevPage: false
+          }
+        });
+      }
       return res.status(500).json({ 
         error: 'Database error', 
         message: err.message 

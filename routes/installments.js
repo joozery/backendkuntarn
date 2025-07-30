@@ -1315,11 +1315,6 @@ router.put('/:id', async (req, res) => {
         i.down_payment as downPayment,
         i.monthly_payment as monthlyPayment,
         i.months,
-        i.customer_details as customerDetails,
-        i.product_details as productDetails,
-        i.guarantor_details as guarantorDetails,
-        i.plan_details as planDetails,
-        i.notes,
         i.status,
         i.created_at as createdAt,
         i.updated_at as updatedAt,
@@ -1350,14 +1345,8 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    // Parse JSON fields
-    const result = {
-      ...installment[0],
-      customerDetails: safeJsonParse(installment[0].customerDetails),
-      productDetails: safeJsonParse(installment[0].productDetails),
-      guarantorDetails: safeJsonParse(installment[0].guarantorDetails),
-      planDetails: safeJsonParse(installment[0].planDetails)
-    };
+    // Return the result directly since we're not using JSON fields anymore
+    const result = installment[0];
     
     res.json({
       success: true,

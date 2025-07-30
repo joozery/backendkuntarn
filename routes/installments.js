@@ -219,8 +219,8 @@ router.get('/', async (req, res) => {
         c.full_name as customerFullName,
         c.phone as customerPhone,
         c.address as customerAddress,
-        p.name as productName,
-        p.price as productPrice,
+        inv.product_name as productName,
+        inv.cost_price as productPrice,
         b.name as branchName,
         e.name as salespersonName,
         e.surname as salespersonSurname,
@@ -231,7 +231,7 @@ router.get('/', async (req, res) => {
         i.line
       FROM installments i
       LEFT JOIN customers c ON i.customer_id = c.id
-      LEFT JOIN products p ON i.product_id = p.id
+      LEFT JOIN inventory inv ON i.product_id = inv.id
       LEFT JOIN branches b ON i.branch_id = b.id
       LEFT JOIN employees e ON i.salesperson_id = e.id
       LEFT JOIN checkers ch ON i.inspector_id = ch.id

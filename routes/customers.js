@@ -393,10 +393,17 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         c.email,
         c.address,
         c.status,
+        c.guarantor_name,
+        c.guarantor_id_card,
+        c.guarantor_nickname,
         COUNT(i.id) as contract_count,
         SUM(i.total_amount) as total_contracts_amount,
         MAX(i.contract_date) as latest_contract_date,
-        GROUP_CONCAT(DISTINCT i.contract_number ORDER BY i.contract_date DESC SEPARATOR ', ') as contract_numbers
+        GROUP_CONCAT(DISTINCT i.contract_number ORDER BY i.contract_date DESC SEPARATOR ', ') as contract_numbers,
+        CASE 
+          WHEN i.discount_amount > 0 OR i.discount_percentage > 0 THEN 1 
+          ELSE 0 
+        END as has_discount
       FROM customers c
       INNER JOIN installments i ON c.id = i.customer_id
       WHERE i.inspector_id = ?
@@ -412,10 +419,13 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         c.surname LIKE ? OR 
         c.full_name LIKE ? OR 
         c.nickname LIKE ? OR 
-        c.id_card LIKE ?
+        c.id_card LIKE ? OR
+        c.guarantor_name LIKE ? OR
+        c.guarantor_id_card LIKE ? OR
+        c.guarantor_nickname LIKE ?
       )`;
       const searchParam = `%${search}%`;
-      queryParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
+      queryParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
     }
     
     // Add status filter
@@ -457,10 +467,13 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         c.surname LIKE ? OR 
         c.full_name LIKE ? OR 
         c.nickname LIKE ? OR 
-        c.id_card LIKE ?
+        c.id_card LIKE ? OR
+        c.guarantor_name LIKE ? OR
+        c.guarantor_id_card LIKE ? OR
+        c.guarantor_nickname LIKE ?
       )`;
       const searchParam = `%${search}%`;
-      countParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
+      countParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
     }
     
     if (status && status !== 'all') {

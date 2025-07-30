@@ -737,13 +737,13 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Use plan.monthlyPayment if installmentAmount is not provided
-    const monthlyPayment = installmentAmount || plan?.monthlyPayment;
-    if (!monthlyPayment) {
+    // Use monthlyPayment from request body if installmentAmount is not provided
+    const finalMonthlyPayment = installmentAmount || monthlyPayment;
+    if (!finalMonthlyPayment) {
       console.log('❌ Missing monthly payment');
       return res.status(400).json({ 
         error: 'Missing monthly payment',
-        message: 'Either installmentAmount or plan.monthlyPayment is required' 
+        message: 'Either installmentAmount or monthlyPayment is required' 
       });
     }
     
@@ -811,7 +811,7 @@ router.post('/', async (req, res) => {
     
     const params = [
       finalContractNumber, contractDate, customerId, productId, productName, totalAmount,
-      monthlyPayment, remainingAmount, installmentPeriod, startDate,
+      finalMonthlyPayment, remainingAmount, installmentPeriod, startDate,
       endDate, branchId, salespersonId, inspectorId, line,
       customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
       customerDistrict, customerProvince, customerPhone1, customerPhone2, customerPhone3, customerEmail,
@@ -820,7 +820,7 @@ router.post('/', async (req, res) => {
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
       guarantorPhone2, guarantorPhone3, guarantorEmail,
       productDescription, productCategory, productModel, productSerialNumber,
-      finalDownPayment, monthlyPayment, finalMonths, finalCollectionDate
+      finalDownPayment, finalMonthlyPayment, finalMonths, finalCollectionDate
     ];
     
     console.log('🔍 SQL Query:', sqlQuery);

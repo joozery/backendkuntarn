@@ -50,9 +50,10 @@ async function generateUniqueContractNumber() {
 async function updateInventoryStock(inventoryId, branchId, sellDate, sellingCost, contractNumber) {
   try {
     console.log('🔍 Updating inventory stock for inventory ID:', inventoryId, 'branch:', branchId);
+    console.log('📋 Contract number to update:', contractNumber);
     
     // Get the inventory record directly
-    const getInventoryQuery = 'SELECT product_name FROM inventory WHERE id = ?';
+    const getInventoryQuery = 'SELECT product_name, contract_number FROM inventory WHERE id = ?';
     const inventoryResult = await query(getInventoryQuery, [inventoryId]);
     
     if (inventoryResult.length === 0) {
@@ -61,6 +62,13 @@ async function updateInventoryStock(inventoryId, branchId, sellDate, sellingCost
     }
     
     const productName = inventoryResult[0].product_name;
+    const currentContractNumber = inventoryResult[0].contract_number;
+    
+    console.log('📦 Current inventory data:', {
+      productName,
+      currentContractNumber,
+      newContractNumber: contractNumber
+    });
     
     // Update inventory: decrease remaining quantity, increase sold quantity, set sell date, selling cost, and contract number
     const updateQuery = `
@@ -81,9 +89,10 @@ async function updateInventoryStock(inventoryId, branchId, sellDate, sellingCost
     
     if (result.affectedRows > 0) {
       console.log('✅ Inventory stock updated successfully for inventory ID:', inventoryId);
+      console.log('📋 Contract number updated from:', currentContractNumber, 'to:', contractNumber);
       return true;
     } else {
-      console.log('⚠️ No inventory record found for inventory ID:', inventoryId, 'branch:', branchId);
+      console.log('⚠️ No inventory record found or already sold for inventory ID:', inventoryId, 'branch:', branchId);
       return false;
     }
   } catch (error) {
@@ -678,13 +687,31 @@ router.put('/:id/payments/:paymentId', async (req, res) => {
     const { id, paymentId } = req.params;
     const { amount, payment_date, due_date, status, notes } = req.body;
     
+    console.log('🔍 PUT payment request:', { id, paymentId, amount, payment_date, due_date, status, notes });
+    
+    // Get current payment data first
+    const getPaymentQuery = 'SELECT amount, due_date FROM payments WHERE id = ? AND installment_id = ?';
+    const currentPayment = await query(getPaymentQuery, [paymentId, id]);
+    
+    if (currentPayment.length === 0) {
+      return res.status(404).json({ 
+        error: 'Payment not found' 
+      });
+    }
+    
+    // Use current values if not provided
+    const finalAmount = amount || currentPayment[0].amount;
+    const finalDueDate = due_date || currentPayment[0].due_date;
+    
+    console.log('🔍 Final values:', { finalAmount, finalDueDate, payment_date, status, notes });
+    
     const sqlQuery = `
       UPDATE payments 
       SET amount = ?, payment_date = ?, due_date = ?, status = ?, notes = ?, updated_at = NOW()
       WHERE id = ? AND installment_id = ?
     `;
     
-    const params = [amount, payment_date, due_date, status, notes, paymentId, id];
+    const params = [finalAmount, payment_date, finalDueDate, status, notes, paymentId, id];
     
     const result = await query(sqlQuery, params);
     
@@ -1101,11 +1128,21 @@ router.post('/', async (req, res) => {
     // Update inventory stock when product is sold
     try {
       console.log('🔍 Updating inventory stock for inventory ID:', productId);
-      const sellDate = contractDate || new Date().toISOString().split('T')[0];
-      const sellingCost = totalAmount || 0;
-      await updateInventoryStock(productId, branchId, sellDate, sellingCost, contractNumber);
+      console.log('📋 Product ID type:', typeof productId, 'value:', productId);
+      console.log('📋 Contract number:', finalContractNumber);
+      console.log('📋 Branch ID:', branchId);
+      
+      if (!productId) {
+        console.log('⚠️ Product ID is null or undefined, skipping inventory update');
+      } else {
+        const sellDate = contractDate || new Date().toISOString().split('T')[0];
+        const sellingCost = totalAmount || 0;
+        const updateResult = await updateInventoryStock(productId, branchId, sellDate, sellingCost, finalContractNumber);
+        console.log('📋 Inventory update result:', updateResult);
+      }
     } catch (inventoryError) {
       console.log('⚠️ Inventory stock update failed, but installment was created:', inventoryError.message);
+      console.error('❌ Inventory error details:', inventoryError);
     }
     
     // Create payment schedule automatically (if payments table exists)

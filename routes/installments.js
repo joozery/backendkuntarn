@@ -74,12 +74,10 @@ async function updateInventoryStock(inventoryId, branchId, sellDate, sellingCost
         contract_number = ?,
         status = 'sold',
         updated_at = NOW()
-      WHERE product_name = ? AND branch_id = ? AND remaining_quantity1 > 0
-      ORDER BY receive_date ASC
-      LIMIT 1
+      WHERE id = ? AND remaining_quantity1 > 0
     `;
     
-    const result = await query(updateQuery, [sellDate, sellingCost, contractNumber, productName, branchId]);
+    const result = await query(updateQuery, [sellDate, sellingCost, contractNumber, inventoryId]);
     
     if (result.affectedRows > 0) {
       console.log('✅ Inventory stock updated successfully for inventory ID:', inventoryId);

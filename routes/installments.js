@@ -633,6 +633,38 @@ router.post('/:id/payments', async (req, res) => {
     const { id } = req.params;
     const { amount, payment_date, due_date, status, notes } = req.body;
     
+    console.log('🔍 POST payment request:', { id, amount, payment_date, due_date, status, notes });
+    
+    // ฟังก์ชันแปลงวันที่ให้ถูกต้อง
+    function convertDateFormat(dateString) {
+      if (!dateString) return null;
+      
+      try {
+        // ถ้าเป็นรูปแบบ DD-MM-YYYY (เช่น 31-08-2568)
+        if (dateString.includes('-') && dateString.split('-')[0].length === 2) {
+          const parts = dateString.split('-');
+          const day = parts[0];
+          const month = parts[1];
+          const year = parts[2];
+          
+          // แปลงปี พ.ศ. เป็น ค.ศ.
+          const christianYear = parseInt(year) - 543;
+          
+          return `${christianYear}-${month}-${day}`;
+        }
+        
+        // ถ้าเป็นรูปแบบอื่น ให้แปลงเป็น YYYY-MM-DD
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+          return null;
+        }
+        return date.toISOString().split('T')[0];
+      } catch (error) {
+        console.error('Error converting date:', dateString, error);
+        return null;
+      }
+    }
+    
     // Validation
     if (!amount || !payment_date) {
       return res.status(400).json({
@@ -641,12 +673,18 @@ router.post('/:id/payments', async (req, res) => {
       });
     }
     
+    // แปลงวันที่ให้ถูกต้อง
+    const finalPaymentDate = convertDateFormat(payment_date);
+    const finalDueDate = convertDateFormat(due_date) || finalPaymentDate;
+    
+    console.log('🔍 Final dates:', { finalPaymentDate, finalDueDate });
+    
     const sqlQuery = `
       INSERT INTO payments (installment_id, amount, payment_date, due_date, status, notes, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
     
-    const params = [id, amount, payment_date, due_date || payment_date, status || 'paid', notes || ''];
+    const params = [id, amount, finalPaymentDate, finalDueDate, status || 'paid', notes || ''];
     
     const result = await query(sqlQuery, params);
     
@@ -666,8 +704,8 @@ router.post('/:id/payments', async (req, res) => {
         id: result.insertId,
         installment_id: id,
         amount,
-        payment_date,
-        due_date: due_date || payment_date,
+        payment_date: finalPaymentDate,
+        due_date: finalDueDate,
         status: status || 'paid',
         notes: notes || ''
       }
@@ -689,6 +727,36 @@ router.put('/:id/payments/:paymentId', async (req, res) => {
     
     console.log('🔍 PUT payment request:', { id, paymentId, amount, payment_date, due_date, status, notes });
     
+    // ฟังก์ชันแปลงวันที่ให้ถูกต้อง
+    function convertDateFormat(dateString) {
+      if (!dateString) return null;
+      
+      try {
+        // ถ้าเป็นรูปแบบ DD-MM-YYYY (เช่น 31-08-2568)
+        if (dateString.includes('-') && dateString.split('-')[0].length === 2) {
+          const parts = dateString.split('-');
+          const day = parts[0];
+          const month = parts[1];
+          const year = parts[2];
+          
+          // แปลงปี พ.ศ. เป็น ค.ศ.
+          const christianYear = parseInt(year) - 543;
+          
+          return `${christianYear}-${month}-${day}`;
+        }
+        
+        // ถ้าเป็นรูปแบบอื่น ให้แปลงเป็น YYYY-MM-DD
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+          return null;
+        }
+        return date.toISOString().split('T')[0];
+      } catch (error) {
+        console.error('Error converting date:', dateString, error);
+        return null;
+      }
+    }
+    
     // Get current payment data first
     const getPaymentQuery = 'SELECT amount, due_date FROM payments WHERE id = ? AND installment_id = ?';
     const currentPayment = await query(getPaymentQuery, [paymentId, id]);
@@ -701,9 +769,10 @@ router.put('/:id/payments/:paymentId', async (req, res) => {
     
     // Use current values if not provided
     const finalAmount = amount || currentPayment[0].amount;
-    const finalDueDate = due_date || currentPayment[0].due_date;
+    const finalDueDate = convertDateFormat(due_date) || currentPayment[0].due_date;
+    const finalPaymentDate = convertDateFormat(payment_date);
     
-    console.log('🔍 Final values:', { finalAmount, finalDueDate, payment_date, status, notes });
+    console.log('🔍 Final values:', { finalAmount, finalPaymentDate, finalDueDate, status, notes });
     
     const sqlQuery = `
       UPDATE payments 
@@ -711,7 +780,7 @@ router.put('/:id/payments/:paymentId', async (req, res) => {
       WHERE id = ? AND installment_id = ?
     `;
     
-    const params = [finalAmount, payment_date, finalDueDate, status, notes, paymentId, id];
+    const params = [finalAmount, finalPaymentDate, finalDueDate, status, notes, paymentId, id];
     
     const result = await query(sqlQuery, params);
     

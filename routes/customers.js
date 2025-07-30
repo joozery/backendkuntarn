@@ -399,11 +399,7 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         COUNT(i.id) as contract_count,
         SUM(i.total_amount) as total_contracts_amount,
         MAX(i.contract_date) as latest_contract_date,
-        GROUP_CONCAT(DISTINCT i.contract_number ORDER BY i.contract_date DESC SEPARATOR ', ') as contract_numbers,
-        CASE 
-          WHEN i.discount_amount > 0 OR i.discount_percentage > 0 THEN 1 
-          ELSE 0 
-        END as has_discount
+        GROUP_CONCAT(DISTINCT i.contract_number ORDER BY i.contract_date DESC SEPARATOR ', ') as contract_numbers
       FROM customers c
       INNER JOIN installments i ON c.id = i.customer_id
       WHERE i.inspector_id = ?

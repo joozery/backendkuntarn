@@ -45,7 +45,17 @@ ADD COLUMN IF NOT EXISTS product_serial_number VARCHAR(100) AFTER product_model,
 ADD COLUMN IF NOT EXISTS down_payment DECIMAL(10,2) AFTER product_serial_number,
 ADD COLUMN IF NOT EXISTS monthly_payment DECIMAL(10,2) AFTER down_payment,
 ADD COLUMN IF NOT EXISTS months INT AFTER monthly_payment,
-ADD COLUMN IF NOT EXISTS collection_date DATE AFTER months;
+ADD COLUMN IF NOT EXISTS collection_date DATE AFTER months,
+-- เพิ่มคอลัมน์สำหรับระบบติดตามสถานะการชำระเงิน
+ADD COLUMN IF NOT EXISTS payment_status ENUM('pending', 'partial', 'completed') DEFAULT 'pending' AFTER collection_date,
+ADD COLUMN IF NOT EXISTS napheo_red INT DEFAULT 0 AFTER payment_status,
+ADD COLUMN IF NOT EXISTS napheo_black INT DEFAULT 0 AFTER napheo_red,
+ADD COLUMN IF NOT EXISTS p_black INT DEFAULT 0 AFTER napheo_black,
+ADD COLUMN IF NOT EXISTS p_red INT DEFAULT 0 AFTER p_black,
+ADD COLUMN IF NOT EXISTS p_blue INT DEFAULT 0 AFTER p_red,
+ADD COLUMN IF NOT EXISTS amount_to_collect DECIMAL(10,2) DEFAULT 0 AFTER p_blue,
+ADD COLUMN IF NOT EXISTS amount_collected DECIMAL(10,2) DEFAULT 0 AFTER amount_to_collect,
+ADD COLUMN IF NOT EXISTS remaining_debt DECIMAL(10,2) DEFAULT 0 AFTER amount_collected;
 
 -- Add foreign key constraints (only if they don't exist)
 -- Note: MySQL doesn't support IF NOT EXISTS for constraints, so we'll handle errors gracefully

@@ -1246,79 +1246,98 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/installments/:id/payments/:paymentId - Update payment status
-router.put('/:id/payments/:paymentId', async (req, res) => {
+router.put('/:id/payment-status', async (req, res) => {
   try {
-    const { id, paymentId } = req.params;
-    const { status, paymentDate, notes, checkerId } = req.body;
-    
-    console.log('🔍 Updating payment:', { paymentId, status, paymentDate, notes, checkerId });
-    
-    // Update payment
-    const updateQuery = `
-      UPDATE payments 
-      SET status = ?, payment_date = ?, notes = ?, updated_at = NOW()
-      WHERE id = ? AND installment_id = ?
-    `;
-    
-    await query(updateQuery, [
-      status,
-      status === 'paid' ? paymentDate || new Date().toISOString().split('T')[0] : null,
-      notes,
-      paymentId,
-      id
-    ]);
-    
-    // If payment is marked as paid and checkerId is provided, create payment collection record
-    if (status === 'paid' && checkerId) {
-      const collectionQuery = `
-        INSERT INTO payment_collections (payment_id, checker_id, collection_date, created_at, updated_at)
-        VALUES (?, ?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE 
-        checker_id = VALUES(checker_id),
-        collection_date = VALUES(collection_date),
-        updated_at = NOW()
-      `;
-      
-      await query(collectionQuery, [
-        paymentId,
-        checkerId,
-        paymentDate || new Date().toISOString().split('T')[0]
-      ]);
-    }
-    
-    // Get updated payment
-    const paymentQuery = `
+    const { id } = req.params;
+    const { 
+      paymentStatus, 
+      napheoRed, 
+      napheoBlack, 
+      pBlack, 
+      pRed, 
+      pBlue, 
+      amountCollected,
+      collectionDate 
+    } = req.body;
+
+    console.log('🔄 Updating payment status for installment:', id);
+    console.log('📊 Payment data:', req.body);
+
+    // อัพเดทหรือสร้างข้อมูลใน payment_tracking
+    const upsertQuery = `
+      INSERT INTO payment_tracking (
+        installment_id, 
+        contract_number, 
+        inspector_id,
+        payment_status, 
+        napheo_red, 
+        napheo_black, 
+        p_black, 
+        p_red, 
+        p_blue, 
+        amount_collected,
+        collection_date,
+        amount_to_collect,
+        remaining_debt
+      ) 
       SELECT 
-        p.id,
-        p.installment_id as installmentId,
-        p.amount,
-        p.payment_date as paymentDate,
-        p.due_date as dueDate,
-        p.status,
-        p.notes,
-        p.created_at as createdAt,
-        pc.checker_id as checkerId,
-        ch.name as checkerName,
-        ch.surname as checkerSurname,
-        ch.full_name as checkerFullName
-      FROM payments p
-      LEFT JOIN payment_collections pc ON p.id = pc.payment_id
-      LEFT JOIN checkers ch ON pc.checker_id = ch.id
-      WHERE p.id = ?
+        ?, 
+        i.contract_number, 
+        i.inspector_id,
+        ?, 
+        ?, 
+        ?, 
+        ?, 
+        ?, 
+        ?, 
+        ?,
+        ?,
+        i.installment_amount,
+        i.installment_amount - ?
+      FROM installments i 
+      WHERE i.id = ?
+      ON DUPLICATE KEY UPDATE 
+        payment_status = VALUES(payment_status),
+        napheo_red = VALUES(napheo_red),
+        napheo_black = VALUES(napheo_black),
+        p_black = VALUES(p_black),
+        p_red = VALUES(p_red),
+        p_blue = VALUES(p_blue),
+        amount_collected = VALUES(amount_collected),
+        collection_date = VALUES(collection_date),
+        remaining_debt = VALUES(remaining_debt),
+        updated_at = CURRENT_TIMESTAMP
     `;
-    
-    const payment = await query(paymentQuery, [paymentId]);
-    
+
+    const params = [
+      id,
+      paymentStatus || 'pending',
+      napheoRed || 0,
+      napheoBlack || 0,
+      pBlack || 0,
+      pRed || 0,
+      pBlue || 0,
+      amountCollected || 0,
+      collectionDate,
+      amountCollected || 0,
+      id
+    ];
+
+    await query(upsertQuery, params);
+
+    console.log('✅ Payment status updated successfully');
+
     res.json({
       success: true,
-      data: payment[0],
-      message: 'Payment updated successfully'
+      message: 'Payment status updated successfully'
     });
+
   } catch (error) {
-    console.error('Error in payment update:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    console.error('Error updating payment status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });
@@ -1664,6 +1683,110 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ 
       error: 'Server error', 
       message: error.message 
+    });
+  }
+});
+
+// GET /api/installments/checker/:checkerId/report - Get installment report for checker
+router.get('/checker/:checkerId/report', async (req, res) => {
+  try {
+    const { checkerId } = req.params;
+    const { month, year } = req.query;
+    
+    console.log('🔍 Getting installment report for checker:', checkerId);
+    console.log('📅 Month:', month, 'Year:', year);
+
+    let sqlQuery = `
+      SELECT 
+        i.id,
+        i.contract_number as contract,
+        CONCAT(c.name, ' ', c.surname) as customerName,
+        pt.collection_date as collectionDate,
+        pt.amount_to_collect as amountToCollect,
+        pt.amount_collected as amountCollected,
+        pt.remaining_debt as remainingDebt,
+        pt.payment_status as paymentStatus,
+        pt.napheo_red as napheoRed,
+        pt.napheo_black as napheoBlack,
+        pt.p_black as pBlack,
+        pt.p_red as pRed,
+        pt.p_blue as pBlue,
+        i.created_at as createdAt,
+        pt.updated_at as updatedAt
+      FROM installments i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN payment_tracking pt ON i.id = pt.installment_id
+      WHERE i.inspector_id = ?
+    `;
+    
+    const params = [checkerId];
+    
+    if (month && year) {
+      sqlQuery += ' AND MONTH(pt.collection_date) = ? AND YEAR(pt.collection_date) = ?';
+      params.push(month, year);
+    }
+    
+    sqlQuery += ' ORDER BY pt.collection_date ASC';
+    
+    const results = await query(sqlQuery, params);
+    
+    console.log('📊 Found', results.length, 'installments for checker');
+    
+    // คำนวณยอดรวม
+    const summary = {
+      totalCards: results.length,
+      cardsToCollect: results.filter(item => item.paymentStatus === 'pending').length,
+      cardsCollected: results.filter(item => item.paymentStatus === 'completed').length,
+      
+      // P เขียว
+      pGreen: results.filter(item => item.pBlue > 0).length,
+      pRed: results.filter(item => item.pRed > 0).length,
+      totalPCards: results.length,
+      
+      // P เก็บได้
+      pGreenCollected: results.filter(item => item.pBlue > 0).length,
+      pRedCollected: results.filter(item => item.pRed > 0).length,
+      totalPCardsCollected: results.filter(item => item.pBlue > 0 || item.pRed > 0).length,
+      
+      // จำนวนเงิน
+      totalMoney: results.reduce((sum, item) => sum + (parseFloat(item.amountToCollect) || 0), 0),
+      moneyToCollect: results.reduce((sum, item) => sum + (parseFloat(item.amountToCollect) || 0), 0),
+      moneyCollected: results.reduce((sum, item) => sum + (parseFloat(item.amountCollected) || 0), 0)
+    };
+    
+    // แปลงข้อมูลให้ตรงกับ frontend
+    const processedResults = results.map((result, index) => ({
+      id: result.id,
+      sequence: index + 1,
+      contract: result.contract,
+      name: result.customerName,
+      collectionDate: result.collectionDate ? new Date(result.collectionDate).toLocaleDateString('th-TH') : '-',
+      amountToCollect: parseFloat(result.amountToCollect) || 0,
+      amountCollected: parseFloat(result.amountCollected) || 0,
+      remainingDebt: parseFloat(result.remainingDebt) || 0,
+      napheoRed: parseInt(result.napheoRed) || 0,
+      napheoBlack: parseInt(result.napheoBlack) || 0,
+      pBlack: parseInt(result.pBlack) || 0,
+      pRed: parseInt(result.pRed) || 0,
+      pBlue: parseInt(result.pBlue) || 0,
+      paymentStatus: result.paymentStatus || 'pending'
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        installments: processedResults,
+        summary: summary
+      },
+      total: processedResults.length
+    });
+    
+  } catch (error) {
+    console.error('Error getting checker installment report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });

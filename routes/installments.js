@@ -405,8 +405,10 @@ router.get('/:id', async (req, res) => {
         c.full_name as customerFullName,
         c.phone as customerPhone,
         c.address as customerAddress,
-        inv.product_name as productName,
-        inv.cost_price as productPrice,
+        c.nickname as customerNickname,
+        c.id_card as customerIdCard,
+        p.name as productName,
+        p.price as productPrice,
         b.name as branchName,
         e.name as salespersonName,
         e.surname as salespersonSurname,
@@ -443,7 +445,9 @@ router.get('/:id', async (req, res) => {
         phone1: results[0].customerPhone1,
         phone2: results[0].customerPhone2,
         phone3: results[0].customerPhone3,
-        email: results[0].customerEmail
+        email: results[0].customerEmail,
+        nickname: results[0].customerNickname,
+        idCard: results[0].customerIdCard
       },
       guarantorDetails: {
         id: results[0].guarantorId,
@@ -920,7 +924,9 @@ router.post('/', async (req, res) => {
         phone1: installment[0].customerPhone1,
         phone2: installment[0].customerPhone2,
         phone3: installment[0].customerPhone3,
-        email: installment[0].customerEmail
+        email: installment[0].customerEmail,
+        nickname: installment[0].customerNickname,
+        idCard: installment[0].customerIdCard
       },
       guarantorDetails: {
         id: installment[0].guarantorId,

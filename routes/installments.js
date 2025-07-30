@@ -47,7 +47,7 @@ async function generateUniqueContractNumber() {
 }
 
 // Helper function to update inventory stock when product is sold
-async function updateInventoryStock(productId, branchId, sellDate, sellingCost) {
+async function updateInventoryStock(productId, branchId, sellDate, sellingCost, contractNumber) {
   try {
     console.log('🔍 Updating inventory stock for product:', productId, 'branch:', branchId);
     
@@ -62,7 +62,7 @@ async function updateInventoryStock(productId, branchId, sellDate, sellingCost) 
     
     const productName = productResult[0].name;
     
-    // Update inventory: decrease remaining quantity, increase sold quantity, set sell date and selling cost
+    // Update inventory: decrease remaining quantity, increase sold quantity, set sell date, selling cost, and contract number
     const updateQuery = `
       UPDATE inventory 
       SET 
@@ -71,6 +71,7 @@ async function updateInventoryStock(productId, branchId, sellDate, sellingCost) 
         remaining_quantity2 = 0,
         sell_date = ?,
         selling_cost = ?,
+        contract_number = ?,
         status = 'sold',
         updated_at = NOW()
       WHERE product_name = ? AND branch_id = ? AND remaining_quantity1 > 0
@@ -78,7 +79,7 @@ async function updateInventoryStock(productId, branchId, sellDate, sellingCost) 
       LIMIT 1
     `;
     
-    const result = await query(updateQuery, [sellDate, sellingCost, productName, branchId]);
+    const result = await query(updateQuery, [sellDate, sellingCost, contractNumber, productName, branchId]);
     
     if (result.affectedRows > 0) {
       console.log('✅ Inventory stock updated successfully for product:', productId);
@@ -1061,7 +1062,7 @@ router.post('/', async (req, res) => {
       console.log('🔍 Updating inventory stock for product:', productId);
       const sellDate = contractDate || new Date().toISOString().split('T')[0];
       const sellingCost = totalAmount || 0;
-      await updateInventoryStock(productId, branchId, sellDate, sellingCost);
+      await updateInventoryStock(productId, branchId, sellDate, sellingCost, contractNumber);
     } catch (inventoryError) {
       console.log('⚠️ Inventory stock update failed, but installment was created:', inventoryError.message);
     }
@@ -1357,7 +1358,7 @@ router.put('/:id', async (req, res) => {
       console.log('🔍 Updating inventory stock for product:', finalProductId);
       const sellDate = finalContractDate || new Date().toISOString().split('T')[0];
       const sellingCost = finalTotalAmount || 0;
-      await updateInventoryStock(finalProductId, selectedBranch, sellDate, sellingCost);
+      await updateInventoryStock(finalProductId, selectedBranch, sellDate, sellingCost, finalContractNumber);
     } catch (inventoryError) {
       console.log('⚠️ Inventory stock update failed during contract update:', inventoryError.message);
     }
@@ -1445,7 +1446,7 @@ async function restoreInventoryStock(productId, branchId) {
     
     const productName = productResult[0].name;
     
-    // Restore inventory: increase remaining quantity, decrease sold quantity, clear sell date and selling cost
+    // Restore inventory: increase remaining quantity, decrease sold quantity, clear sell date, selling cost, and contract number
     const updateQuery = `
       UPDATE inventory 
       SET 
@@ -1454,6 +1455,7 @@ async function restoreInventoryStock(productId, branchId) {
         remaining_quantity2 = 1,
         sell_date = NULL,
         selling_cost = 0,
+        contract_number = '-',
         status = 'active',
         updated_at = NOW()
       WHERE product_name = ? AND branch_id = ? AND sold_quantity > 0

@@ -762,6 +762,7 @@ router.post('/', async (req, res) => {
         start_date, end_date, branch_id, salesperson_id, inspector_id, line,
         customer_title, customer_age, customer_moo, customer_road, customer_subdistrict, 
         customer_district, customer_province, customer_phone1, customer_phone2, customer_phone3, customer_email,
+        customer_id_card, customer_name, customer_nickname,
         guarantor_id, guarantor_title, guarantor_name, guarantor_surname, guarantor_nickname,
         guarantor_age, guarantor_id_card, guarantor_address, guarantor_moo, guarantor_road,
         guarantor_subdistrict, guarantor_district, guarantor_province, guarantor_phone1,
@@ -770,7 +771,7 @@ router.post('/', async (req, res) => {
         down_payment, monthly_payment, months, collection_date,
         status, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
     `;
     
     const remainingAmount = totalAmount - (downPayment || 0);
@@ -819,6 +820,7 @@ router.post('/', async (req, res) => {
       endDate, branchId, salespersonId, inspectorId, line,
       customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
       customerDistrict, customerProvince, customerPhone1, customerPhone2, customerPhone3, customerEmail,
+      customerIdCard, customerName, customerNickname,
       guarantorIdValue, guarantorTitle, guarantorName, guarantorSurname, guarantorNickname,
       guarantorAge, guarantorIdCard, guarantorAddress, guarantorMoo, guarantorRoad,
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
@@ -1234,6 +1236,7 @@ router.put('/:id', async (req, res) => {
           start_date = ?, end_date = ?, status = ?, salesperson_id = ?, inspector_id = ?, line = ?,
           customer_title = ?, customer_age = ?, customer_moo = ?, customer_road = ?, customer_subdistrict = ?,
           customer_district = ?, customer_province = ?, customer_phone1 = ?, customer_phone2 = ?, customer_phone3 = ?, customer_email = ?,
+          customer_id_card = ?, customer_name = ?, customer_nickname = ?,
           guarantor_id = ?, guarantor_title = ?, guarantor_name = ?, guarantor_surname = ?, guarantor_nickname = ?,
           guarantor_age = ?, guarantor_id_card = ?, guarantor_address = ?, guarantor_moo = ?, guarantor_road = ?,
           guarantor_subdistrict = ?, guarantor_district = ?, guarantor_province = ?, guarantor_phone1 = ?,
@@ -1249,6 +1252,7 @@ router.put('/:id', async (req, res) => {
             finalInstallmentAmount, finalInstallmentPeriod, finalStartDate, finalEndDate, finalStatus, finalSalespersonId,
       finalInspectorId, finalLine, customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
       customerDistrict, customerProvince, customerPhone1, customerPhone2, customerPhone3, customerEmail,
+      customerIdCard, customerName, customerNickname,
       guarantorIdValue, guarantorTitle, guarantorName, guarantorSurname, guarantorNickname,
       guarantorAge, guarantorIdCard, guarantorAddress, guarantorMoo, guarantorRoad,
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,

@@ -29,10 +29,10 @@ async function addInventoryData() {
         product.price || 0, // cost_price
         null, // sell_date
         0, // selling_cost
-        5, // remaining_quantity1 (5 pieces in stock)
-        5, // received_quantity
+        1, // remaining_quantity1 (1 piece in stock)
+        1, // received_quantity
         0, // sold_quantity
-        5, // remaining_quantity2
+        1, // remaining_quantity2
         `สินค้า ${product.name}`, // remarks
         1, // branch_id
         'active' // status

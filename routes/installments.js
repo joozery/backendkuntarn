@@ -67,14 +67,11 @@ async function updateInventoryStock(productId, branchId, sellDate, sellingCost) 
       UPDATE inventory 
       SET 
         sold_quantity = sold_quantity + 1,
-        remaining_quantity1 = GREATEST(remaining_quantity1 - 1, 0),
-        remaining_quantity2 = GREATEST(remaining_quantity2 - 1, 0),
+        remaining_quantity1 = 0,
+        remaining_quantity2 = 0,
         sell_date = ?,
         selling_cost = ?,
-        status = CASE 
-          WHEN remaining_quantity1 - 1 <= 0 THEN 'sold'
-          ELSE 'active'
-        END,
+        status = 'sold',
         updated_at = NOW()
       WHERE product_name = ? AND branch_id = ? AND remaining_quantity1 > 0
       ORDER BY receive_date ASC
@@ -1452,9 +1449,9 @@ async function restoreInventoryStock(productId, branchId) {
     const updateQuery = `
       UPDATE inventory 
       SET 
-        sold_quantity = GREATEST(sold_quantity - 1, 0),
-        remaining_quantity1 = remaining_quantity1 + 1,
-        remaining_quantity2 = remaining_quantity2 + 1,
+        sold_quantity = 0,
+        remaining_quantity1 = 1,
+        remaining_quantity2 = 1,
         sell_date = NULL,
         selling_cost = 0,
         status = 'active',

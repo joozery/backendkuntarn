@@ -18,6 +18,7 @@ const customersRoutes = require('./routes/customers');
 const installmentsRoutes = require('./routes/installments');
 const productsRoutes = require('./routes/products');
 const employeesRoutes = require('./routes/employees');
+const inventoryRoutes = require('./routes/inventory');
 
 // Use routes
 app.use('/api/branches', branchesRoutes);
@@ -26,6 +27,7 @@ app.use('/api/customers', customersRoutes);
 app.use('/api/installments', installmentsRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/employees', employeesRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

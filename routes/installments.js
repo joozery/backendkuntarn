@@ -47,20 +47,20 @@ async function generateUniqueContractNumber() {
 }
 
 // Helper function to update inventory stock when product is sold
-async function updateInventoryStock(productId, branchId, sellDate, sellingCost, contractNumber) {
+async function updateInventoryStock(inventoryId, branchId, sellDate, sellingCost, contractNumber) {
   try {
-    console.log('🔍 Updating inventory stock for product:', productId, 'branch:', branchId);
+    console.log('🔍 Updating inventory stock for inventory ID:', inventoryId, 'branch:', branchId);
     
-    // First, get the product code from products table
-    const getProductQuery = 'SELECT name FROM products WHERE id = ?';
-    const productResult = await query(getProductQuery, [productId]);
+    // Get the inventory record directly
+    const getInventoryQuery = 'SELECT product_name FROM inventory WHERE id = ?';
+    const inventoryResult = await query(getInventoryQuery, [inventoryId]);
     
-    if (productResult.length === 0) {
-      console.log('⚠️ Product not found:', productId);
+    if (inventoryResult.length === 0) {
+      console.log('⚠️ Inventory record not found:', inventoryId);
       return false;
     }
     
-    const productName = productResult[0].name;
+    const productName = inventoryResult[0].product_name;
     
     // Update inventory: decrease remaining quantity, increase sold quantity, set sell date, selling cost, and contract number
     const updateQuery = `
@@ -82,10 +82,10 @@ async function updateInventoryStock(productId, branchId, sellDate, sellingCost, 
     const result = await query(updateQuery, [sellDate, sellingCost, contractNumber, productName, branchId]);
     
     if (result.affectedRows > 0) {
-      console.log('✅ Inventory stock updated successfully for product:', productId);
+      console.log('✅ Inventory stock updated successfully for inventory ID:', inventoryId);
       return true;
     } else {
-      console.log('⚠️ No inventory record found for product:', productId, 'branch:', branchId);
+      console.log('⚠️ No inventory record found for inventory ID:', inventoryId, 'branch:', branchId);
       return false;
     }
   } catch (error) {
@@ -1059,7 +1059,7 @@ router.post('/', async (req, res) => {
     
     // Update inventory stock when product is sold
     try {
-      console.log('🔍 Updating inventory stock for product:', productId);
+      console.log('🔍 Updating inventory stock for inventory ID:', productId);
       const sellDate = contractDate || new Date().toISOString().split('T')[0];
       const sellingCost = totalAmount || 0;
       await updateInventoryStock(productId, branchId, sellDate, sellingCost, contractNumber);
@@ -1355,7 +1355,7 @@ router.put('/:id', async (req, res) => {
     
     // Update inventory stock when product is changed or contract is updated
     try {
-      console.log('🔍 Updating inventory stock for product:', finalProductId);
+      console.log('🔍 Updating inventory stock for inventory ID:', finalProductId);
       const sellDate = finalContractDate || new Date().toISOString().split('T')[0];
       const sellingCost = finalTotalAmount || 0;
       await updateInventoryStock(finalProductId, selectedBranch, sellDate, sellingCost, finalContractNumber);
@@ -1431,20 +1431,20 @@ router.put('/:id', async (req, res) => {
 });
 
 // Helper function to restore inventory stock when contract is deleted
-async function restoreInventoryStock(productId, branchId) {
+async function restoreInventoryStock(inventoryId, branchId) {
   try {
-    console.log('🔍 Restoring inventory stock for product:', productId, 'branch:', branchId);
+    console.log('🔍 Restoring inventory stock for inventory ID:', inventoryId, 'branch:', branchId);
     
-    // First, get the product name from products table
-    const getProductQuery = 'SELECT name FROM products WHERE id = ?';
-    const productResult = await query(getProductQuery, [productId]);
+    // Get the inventory record directly
+    const getInventoryQuery = 'SELECT product_name FROM inventory WHERE id = ?';
+    const inventoryResult = await query(getInventoryQuery, [inventoryId]);
     
-    if (productResult.length === 0) {
-      console.log('⚠️ Product not found:', productId);
+    if (inventoryResult.length === 0) {
+      console.log('⚠️ Inventory record not found:', inventoryId);
       return false;
     }
     
-    const productName = productResult[0].name;
+    const productName = inventoryResult[0].product_name;
     
     // Restore inventory: increase remaining quantity, decrease sold quantity, clear sell date, selling cost, and contract number
     const updateQuery = `

@@ -19,6 +19,7 @@ const installmentsRoutes = require('./routes/installments');
 const productsRoutes = require('./routes/products');
 const employeesRoutes = require('./routes/employees');
 const inventoryRoutes = require('./routes/inventory');
+const collectorsRoutes = require('./routes/collectors');
 
 // Use routes
 app.use('/api/branches', branchesRoutes);
@@ -28,6 +29,7 @@ app.use('/api/installments', installmentsRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/collectors', collectorsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

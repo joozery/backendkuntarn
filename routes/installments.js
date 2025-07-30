@@ -288,7 +288,9 @@ router.get('/', async (req, res) => {
         phone1: result.customerPhone1,
         phone2: result.customerPhone2,
         phone3: result.customerPhone3,
-        email: result.customerEmail
+        email: result.customerEmail,
+        nickname: result.customerNickname,
+        idCard: result.customerIdCard
       },
       guarantorDetails: {
         id: result.guarantorId,

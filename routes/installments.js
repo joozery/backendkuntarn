@@ -176,7 +176,11 @@ router.get('/', async (req, res) => {
         b.name as branchName,
         e.name as salespersonName,
         e.surname as salespersonSurname,
-        e.full_name as salespersonFullName
+        e.full_name as salespersonFullName,
+        ch.name as inspectorName,
+        ch.surname as inspectorSurname,
+        ch.full_name as inspectorFullName,
+        i.line
       FROM installments i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN products p ON i.product_id = p.id
@@ -224,6 +228,7 @@ router.get('/', async (req, res) => {
       // Add employee information for frontend
       employeeName: result.salespersonFullName || result.salespersonName || 'ไม่ระบุ',
       inspectorName: result.inspectorFullName || result.inspectorName || 'ไม่ระบุ',
+      line: result.line || 'ไม่ระบุ',
       customerDetails: {
         title: result.customerTitle,
         age: result.customerAge,

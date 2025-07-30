@@ -1183,8 +1183,51 @@ router.put('/:id', async (req, res) => {
     
     // Extract plan details
     const downPayment = plan?.downPayment || 0;
-    const monthlyPayment = plan?.monthlyPayment || installmentAmount;
-    const months = plan?.months || installmentPeriod;
+    const monthlyPayment = plan?.monthlyPayment || installmentAmount || 0;
+    const months = plan?.months || installmentPeriod || 12;
+    
+    // Ensure plan values are not null
+    const finalDownPayment = downPayment || 0;
+    const finalMonthlyPayment = monthlyPayment || 0;
+    const finalMonths = months || 12;
+    
+    // Ensure installmentAmount is not null
+    const finalInstallmentAmount = installmentAmount || monthlyPayment || 0;
+    
+    // Ensure status is not null
+    const finalStatus = status || 'active';
+    
+    // Ensure totalAmount is not null
+    const finalTotalAmount = totalAmount || 0;
+    
+    // Ensure installmentPeriod is not null
+    const finalInstallmentPeriod = installmentPeriod || months || 12;
+    
+    // Ensure contractNumber is not null
+    const finalContractNumber = contractNumber || `CT${new Date().getTime()}`;
+    
+    // Ensure contractDate is not null
+    const finalContractDate = contractDate || new Date().toISOString().split('T')[0];
+    
+    // Ensure startDate and endDate are not null
+    const finalStartDate = startDate || finalContractDate;
+    const finalEndDate = endDate || (() => {
+      const start = new Date(finalStartDate);
+      start.setMonth(start.getMonth() + finalInstallmentPeriod);
+      return start.toISOString().split('T')[0];
+    })();
+    
+    // Ensure required IDs are not null
+    const finalCustomerId = customerId || 1;
+    const finalProductId = productId || 1;
+    const finalSalespersonId = salespersonId || 1;
+    const finalInspectorId = inspectorId || 1;
+    
+    // Ensure productName is not null
+    const finalProductName = productName || 'สินค้าไม่ระบุ';
+    
+    // Ensure line is not null
+    const finalLine = line || 'ไม่ระบุ';
     
     // Helper function to convert date format (reuse from POST)
     function convertDateFormat(dateString) {
@@ -1219,6 +1262,9 @@ router.put('/:id', async (req, res) => {
     
     const collectionDate = convertDateFormat(plan?.collectionDate);
     
+    // Ensure collectionDate is not null
+    const finalCollectionDate = collectionDate || null;
+    
     const sqlQuery = `
       UPDATE installments 
       SET contract_number = ?, contract_date = ?, customer_id = ?, product_id = ?, product_name = ?, 
@@ -1237,16 +1283,16 @@ router.put('/:id', async (req, res) => {
     `;
     
     await query(sqlQuery, [
-      contractNumber, contractDate, customerId, productId, productName, totalAmount,
-      installmentAmount, installmentPeriod, startDate, endDate, status, salespersonId, 
-      inspectorId, line, customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
+      finalContractNumber, finalContractDate, finalCustomerId, finalProductId, finalProductName, finalTotalAmount,
+            finalInstallmentAmount, finalInstallmentPeriod, finalStartDate, finalEndDate, finalStatus, finalSalespersonId,
+      finalInspectorId, finalLine, customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
       customerDistrict, customerProvince, customerPhone1, customerPhone2, customerPhone3, customerEmail,
       guarantorIdValue, guarantorTitle, guarantorName, guarantorSurname, guarantorNickname,
       guarantorAge, guarantorIdCard, guarantorAddress, guarantorMoo, guarantorRoad,
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
       guarantorPhone2, guarantorPhone3, guarantorEmail,
       productDescription, productCategory, productModel, productSerialNumber,
-      downPayment, monthlyPayment, months, collectionDate, id
+      finalDownPayment, finalMonthlyPayment, finalMonths, finalCollectionDate, id
     ]);
     
     // Get the updated installment

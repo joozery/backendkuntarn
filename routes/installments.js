@@ -632,22 +632,58 @@ router.post('/', async (req, res) => {
       branchId,
       salespersonId,
       
-      // Customer details
-      customerDetails,
+      // Customer details (flat fields)
+      customerTitle,
+      customerAge,
+      customerMoo,
+      customerRoad,
+      customerSubdistrict,
+      customerDistrict,
+      customerProvince,
+      customerPhone1,
+      customerPhone2,
+      customerPhone3,
+      customerEmail,
+      customerIdCard,
+      customerName,
+      customerSurname,
+      customerNickname,
+      customerAddress,
       
-      // Guarantor details
+      // Guarantor details (flat fields)
       guarantorId,
-      guarantorDetails,
+      guarantorTitle,
+      guarantorName,
+      guarantorSurname,
+      guarantorNickname,
+      guarantorAge,
+      guarantorIdCard,
+      guarantorAddress,
+      guarantorMoo,
+      guarantorRoad,
+      guarantorSubdistrict,
+      guarantorDistrict,
+      guarantorProvince,
+      guarantorPhone1,
+      guarantorPhone2,
+      guarantorPhone3,
+      guarantorEmail,
       
-      // Product details
-      productDetails,
+      // Product details (flat fields)
+      productDescription,
+      productCategory,
+      productModel,
+      productSerialNumber,
       
       // Employee details
       inspectorId,
       line,
       
-      // Plan details
-      plan
+      // Plan details (flat fields)
+      downPayment,
+      monthlyPayment,
+      months,
+      collectionDate
     } = req.body;
     
     console.log('🔍 POST /api/installments - Request body:', req.body);
@@ -711,111 +747,8 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Update customer information if customerDetails provided
-    if (customerDetails && customerId) {
-      try {
-        const customerUpdateQuery = `
-          UPDATE customers SET 
-            name = ?, 
-            surname = ?, 
-            full_name = ?,
-            nickname = ?,
-            phone = ?,
-            address = ?,
-            updated_at = NOW()
-          WHERE id = ?
-        `;
-        
-        const fullName = `${customerDetails.title || ''} ${customerDetails.name || ''}`.trim();
-        const address = [
-          customerDetails.address,
-          customerDetails.moo,
-          customerDetails.road,
-          customerDetails.subdistrict,
-          customerDetails.district,
-          customerDetails.province
-        ].filter(Boolean).join(' ');
-        
-        await query(customerUpdateQuery, [
-          customerDetails.name || '',
-          customerDetails.surname || '',
-          fullName,
-          customerDetails.nickname || '',
-          customerDetails.phone1 || '',
-          address,
-          customerId
-        ]);
-        
-        console.log('✅ Updated customer information');
-      } catch (customerError) {
-        console.log('⚠️ Failed to update customer information:', customerError.message);
-      }
-    }
-    
-    // Update or create guarantor if guarantorDetails provided
-    if (guarantorDetails && guarantorId) {
-      try {
-        const guarantorUpdateQuery = `
-          UPDATE customers SET 
-            guarantor_name = ?,
-            guarantor_id_card = ?,
-            guarantor_nickname = ?,
-            guarantor_phone = ?,
-            guarantor_address = ?,
-            updated_at = NOW()
-          WHERE id = ?
-        `;
-        
-        const guarantorAddress = [
-          guarantorDetails.address,
-          guarantorDetails.moo,
-          guarantorDetails.road,
-          guarantorDetails.subdistrict,
-          guarantorDetails.district,
-          guarantorDetails.province
-        ].filter(Boolean).join(' ');
-        
-        await query(guarantorUpdateQuery, [
-          guarantorDetails.name || '',
-          guarantorDetails.idCard || '',
-          guarantorDetails.nickname || '',
-          guarantorDetails.phone1 || '',
-          guarantorAddress,
-          guarantorId
-        ]);
-        
-        console.log('✅ Updated guarantor information');
-      } catch (guarantorError) {
-        console.log('⚠️ Failed to update guarantor information:', guarantorError.message);
-      }
-    }
-    
-    // Update product information if productDetails provided
-    if (productDetails && productId) {
-      try {
-        const productUpdateQuery = `
-          UPDATE products SET 
-            description = ?,
-            updated_at = NOW()
-          WHERE id = ?
-        `;
-        
-        const productDescription = [
-          `รุ่น: ${productDetails.model || ''}`,
-          `S/N: ${productDetails.serialNumber || ''}`,
-          productDetails.description || ''
-        ].filter(Boolean).join(' | ');
-        
-        await query(productUpdateQuery, [
-          productDescription,
-          productId
-        ]);
-        
-        console.log('✅ Updated product information');
-      } catch (productError) {
-        console.log('⚠️ Failed to update product information:', productError.message);
-      }
-    }
+    // Note: Customer, guarantor, and product information are now stored directly in installments table
+    // No need to update separate tables
     
     // Insert installment record with all details
     const sqlQuery = `
@@ -836,47 +769,12 @@ router.post('/', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
     `;
     
-    const remainingAmount = totalAmount - (plan?.downPayment || 0);
-    const downPayment = plan?.downPayment || 0;
-    const months = plan?.months || installmentPeriod;
+    const remainingAmount = totalAmount - (downPayment || 0);
+    const finalDownPayment = downPayment || 0;
+    const finalMonths = months || installmentPeriod;
     
-    // Extract customer details
-    const customerTitle = customerDetails?.title || null;
-    const customerAge = customerDetails?.age || null;
-    const customerMoo = customerDetails?.moo || null;
-    const customerRoad = customerDetails?.road || null;
-    const customerSubdistrict = customerDetails?.subdistrict || null;
-    const customerDistrict = customerDetails?.district || null;
-    const customerProvince = customerDetails?.province || null;
-    const customerPhone1 = customerDetails?.phone1 || null;
-    const customerPhone2 = customerDetails?.phone2 || null;
-    const customerPhone3 = customerDetails?.phone3 || null;
-    const customerEmail = customerDetails?.email || null;
-    
-    // Extract guarantor details
+    // Use flat fields directly
     const guarantorIdValue = guarantorId || null;
-    const guarantorTitle = guarantorDetails?.title || null;
-    const guarantorName = guarantorDetails?.name || null;
-    const guarantorSurname = guarantorDetails?.surname || null;
-    const guarantorNickname = guarantorDetails?.nickname || null;
-    const guarantorAge = guarantorDetails?.age || null;
-    const guarantorIdCard = guarantorDetails?.idCard || null;
-    const guarantorAddress = guarantorDetails?.address || null;
-    const guarantorMoo = guarantorDetails?.moo || null;
-    const guarantorRoad = guarantorDetails?.road || null;
-    const guarantorSubdistrict = guarantorDetails?.subdistrict || null;
-    const guarantorDistrict = guarantorDetails?.district || null;
-    const guarantorProvince = guarantorDetails?.province || null;
-    const guarantorPhone1 = guarantorDetails?.phone1 || null;
-    const guarantorPhone2 = guarantorDetails?.phone2 || null;
-    const guarantorPhone3 = guarantorDetails?.phone3 || null;
-    const guarantorEmail = guarantorDetails?.email || null;
-    
-    // Extract product details
-    const productDescription = productDetails?.description || null;
-    const productCategory = productDetails?.category || null;
-    const productModel = productDetails?.model || null;
-    const productSerialNumber = productDetails?.serialNumber || null;
     
     // Helper function to convert date format
     function convertDateFormat(dateString) {
@@ -909,7 +807,7 @@ router.post('/', async (req, res) => {
       return null;
     }
     
-    const collectionDate = convertDateFormat(plan?.collectionDate);
+    const finalCollectionDate = convertDateFormat(collectionDate);
     
     const params = [
       finalContractNumber, contractDate, customerId, productId, productName, totalAmount,
@@ -922,7 +820,7 @@ router.post('/', async (req, res) => {
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
       guarantorPhone2, guarantorPhone3, guarantorEmail,
       productDescription, productCategory, productModel, productSerialNumber,
-      downPayment, monthlyPayment, months, collectionDate
+      finalDownPayment, monthlyPayment, finalMonths, finalCollectionDate
     ];
     
     console.log('🔍 SQL Query:', sqlQuery);

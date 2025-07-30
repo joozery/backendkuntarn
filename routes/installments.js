@@ -235,13 +235,15 @@ router.get('/', async (req, res) => {
         ch.name as inspectorName,
         ch.surname as inspectorSurname,
         ch.full_name as inspectorFullName,
-        i.line
+        i.line,
+        p.due_date as dueDate
       FROM installments i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN inventory inv ON i.product_id = inv.id
       LEFT JOIN branches b ON i.branch_id = b.id
       LEFT JOIN employees e ON i.salesperson_id = e.id
       LEFT JOIN checkers ch ON i.inspector_id = ch.id
+      LEFT JOIN payments p ON i.id = p.installment_id AND p.status = 'pending'
       WHERE 1=1
     `;
     

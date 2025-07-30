@@ -500,7 +500,7 @@ router.get('/:id/payments', async (req, res) => {
     const { id } = req.params;
     const { status } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         p.id,
         p.installment_id as installmentId,
@@ -523,13 +523,13 @@ router.get('/:id/payments', async (req, res) => {
     const params = [id];
     
     if (status) {
-      query += ' AND p.status = ?';
+      sqlQuery += ' AND p.status = ?';
       params.push(status);
     }
     
-    query += ' ORDER BY p.due_date ASC';
+    sqlQuery += ' ORDER BY p.due_date ASC';
     
-    const results = await query(query, params);
+    const results = await query(sqlQuery, params);
     
     // Calculate summary
     const totalPayments = results.length;
@@ -570,7 +570,7 @@ router.get('/:id/collections', async (req, res) => {
     const { id } = req.params;
     const { status } = req.query;
     
-    let query = `
+    let sqlQuery = `
       SELECT 
         pc.id,
         pc.checker_id as checkerId,
@@ -596,13 +596,13 @@ router.get('/:id/collections', async (req, res) => {
     const params = [id];
     
     if (status) {
-      query += ' AND pc.status = ?';
+      sqlQuery += ' AND pc.status = ?';
       params.push(status);
     }
     
-    query += ' ORDER BY pc.payment_date DESC';
+    sqlQuery += ' ORDER BY pc.payment_date DESC';
     
-    const results = await query(query, params);
+    const results = await query(sqlQuery, params);
     
     res.json({
       success: true,
@@ -611,6 +611,141 @@ router.get('/:id/collections', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in installment collections GET:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
+});
+
+// POST /api/installments/:id/payments - Create new payment
+router.post('/:id/payments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, payment_date, due_date, status, notes } = req.body;
+    
+    // Validation
+    if (!amount || !payment_date) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'Amount and payment date are required'
+      });
+    }
+    
+    const sqlQuery = `
+      INSERT INTO payments (installment_id, amount, payment_date, due_date, status, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `;
+    
+    const params = [id, amount, payment_date, due_date || payment_date, status || 'paid', notes || ''];
+    
+    const result = await query(sqlQuery, params);
+    
+    // Update installment remaining amount
+    const updateQuery = `
+      UPDATE installments 
+      SET remaining_amount = remaining_amount - ?, updated_at = NOW()
+      WHERE id = ?
+    `;
+    
+    await query(updateQuery, [amount, id]);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Payment created successfully',
+      data: {
+        id: result.insertId,
+        installment_id: id,
+        amount,
+        payment_date,
+        due_date: due_date || payment_date,
+        status: status || 'paid',
+        notes: notes || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error in payment POST:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
+});
+
+// PUT /api/installments/:id/payments/:paymentId - Update payment
+router.put('/:id/payments/:paymentId', async (req, res) => {
+  try {
+    const { id, paymentId } = req.params;
+    const { amount, payment_date, due_date, status, notes } = req.body;
+    
+    const sqlQuery = `
+      UPDATE payments 
+      SET amount = ?, payment_date = ?, due_date = ?, status = ?, notes = ?, updated_at = NOW()
+      WHERE id = ? AND installment_id = ?
+    `;
+    
+    const params = [amount, payment_date, due_date, status, notes, paymentId, id];
+    
+    const result = await query(sqlQuery, params);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        error: 'Payment not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Payment updated successfully'
+    });
+  } catch (error) {
+    console.error('Error in payment PUT:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
+});
+
+// DELETE /api/installments/:id/payments/:paymentId - Delete payment
+router.delete('/:id/payments/:paymentId', async (req, res) => {
+  try {
+    const { id, paymentId } = req.params;
+    
+    // Get payment amount before deleting
+    const getPaymentQuery = 'SELECT amount FROM payments WHERE id = ? AND installment_id = ?';
+    const paymentInfo = await query(getPaymentQuery, [paymentId, id]);
+    
+    if (paymentInfo.length === 0) {
+      return res.status(404).json({ 
+        error: 'Payment not found' 
+      });
+    }
+    
+    const sqlQuery = 'DELETE FROM payments WHERE id = ? AND installment_id = ?';
+    const result = await query(sqlQuery, [paymentId, id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        error: 'Payment not found' 
+      });
+    }
+    
+    // Restore installment remaining amount
+    const updateQuery = `
+      UPDATE installments 
+      SET remaining_amount = remaining_amount + ?, updated_at = NOW()
+      WHERE id = ?
+    `;
+    
+    await query(updateQuery, [paymentInfo[0].amount, id]);
+    
+    res.json({
+      success: true,
+      message: 'Payment deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in payment DELETE:', error);
     res.status(500).json({ 
       error: 'Server error', 
       message: error.message 

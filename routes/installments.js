@@ -276,7 +276,7 @@ router.get('/', async (req, res) => {
     }
     
     if (search) {
-      sqlQuery += ' AND (i.contract_number LIKE ? OR c.full_name LIKE ? OR p.name LIKE ?)';
+      sqlQuery += ' AND (i.contract_number LIKE ? OR c.full_name LIKE ? OR inv.product_name LIKE ?)';
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm);
     }

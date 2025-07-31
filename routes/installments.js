@@ -237,6 +237,10 @@ router.get('/', async (req, res) => {
         ch.name as inspectorName,
         ch.surname as inspectorSurname,
         ch.full_name as inspectorFullName,
+        i.collector_id as collectorId,
+        col.name as collectorName,
+        col.surname as collectorSurname,
+        col.full_name as collectorFullName,
         i.line,
         (SELECT MIN(p.due_date) FROM payments p WHERE p.installment_id = i.id AND p.status = 'pending') as dueDate
       FROM installments i
@@ -245,6 +249,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN branches b ON i.branch_id = b.id
       LEFT JOIN employees e ON i.salesperson_id = e.id
       LEFT JOIN checkers ch ON i.inspector_id = ch.id
+      LEFT JOIN employees col ON i.collector_id = col.id
       WHERE 1=1
     `;
     
@@ -286,6 +291,7 @@ router.get('/', async (req, res) => {
       // Add employee information for frontend
       employeeName: result.salespersonFullName || result.salespersonName || 'ไม่ระบุ',
       inspectorName: result.inspectorFullName || result.inspectorName || 'ไม่ระบุ',
+      collectorName: result.collectorFullName || result.collectorName || 'ไม่ระบุ',
       line: result.line || 'ไม่ระบุ',
       customerDetails: {
         title: result.customerTitle,
@@ -516,6 +522,7 @@ router.get('/:id/payments', async (req, res) => {
       SELECT 
         p.id,
         p.installment_id as installmentId,
+        p.collector_id as collectorId,
         p.amount,
         p.payment_date as paymentDate,
         p.due_date as dueDate,
@@ -525,10 +532,14 @@ router.get('/:id/payments', async (req, res) => {
         pc.checker_id as checkerId,
         ch.name as checkerName,
         ch.surname as checkerSurname,
-        ch.full_name as checkerFullName
+        ch.full_name as checkerFullName,
+        col.name as collectorName,
+        col.surname as collectorSurname,
+        col.full_name as collectorFullName
       FROM payments p
       LEFT JOIN payment_collections pc ON p.id = pc.payment_id
       LEFT JOIN checkers ch ON pc.checker_id = ch.id
+      LEFT JOIN employees col ON p.collector_id = col.id
       WHERE p.installment_id = ?
     `;
     
@@ -912,6 +923,7 @@ router.post('/', async (req, res) => {
       productCategory,
       productModel,
       productSerialNumber,
+      costPrice,
       
       // Employee details
       inspectorId,
@@ -1001,11 +1013,11 @@ router.post('/', async (req, res) => {
         guarantor_age, guarantor_id_card, guarantor_address, guarantor_moo, guarantor_road,
         guarantor_subdistrict, guarantor_district, guarantor_province, guarantor_phone1,
         guarantor_phone2, guarantor_phone3, guarantor_email,
-        product_description, product_category, product_model, product_serial_number,
+        product_description, product_category, product_model, product_serial_number, cost_price,
         down_payment, monthly_payment, months, collection_date,
         status, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
     `;
     
     const remainingAmount = totalAmount - (downPayment || 0);
@@ -1059,7 +1071,7 @@ router.post('/', async (req, res) => {
       guarantorAge, guarantorIdCard, guarantorAddress, guarantorMoo, guarantorRoad,
       guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
       guarantorPhone2, guarantorPhone3, guarantorEmail,
-      productDescription, productCategory, productModel, productSerialNumber,
+      productDescription, productCategory, productModel, productSerialNumber, costPrice || 0,
       finalDownPayment, finalMonthlyPayment, finalMonths, finalCollectionDate
     ];
     
@@ -1340,6 +1352,64 @@ router.put('/:id/payment-status', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/installments/:id - Update installment collector
+router.put('/:id/collector', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { collectorId } = req.body;
+    
+    const sqlQuery = `
+      UPDATE installments 
+      SET collector_id = ?, updated_at = NOW()
+      WHERE id = ?
+    `;
+    
+    await query(sqlQuery, [collectorId, id]);
+    
+    res.json({
+      success: true,
+      message: 'อัปเดตพนักงานเก็บเงินเรียบร้อยแล้ว',
+      data: { id, collectorId }
+    });
+  } catch (error) {
+    console.error('Error updating installment collector:', error);
+    res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการอัปเดตพนักงานเก็บเงิน',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/payments/:id/collector - Update payment collector
+router.put('/payments/:id/collector', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { collectorId } = req.body;
+    
+    const sqlQuery = `
+      UPDATE payments 
+      SET collector_id = ?, updated_at = NOW()
+      WHERE id = ?
+    `;
+    
+    await query(sqlQuery, [collectorId, id]);
+    
+    res.json({
+      success: true,
+      message: 'อัปเดตพนักงานเก็บเงินเรียบร้อยแล้ว',
+      data: { id, collectorId }
+    });
+  } catch (error) {
+    console.error('Error updating payment collector:', error);
+    res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการอัปเดตพนักงานเก็บเงิน',
       error: error.message
     });
   }

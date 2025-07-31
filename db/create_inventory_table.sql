@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS inventory (
   receive_date DATE,
   product_code VARCHAR(50),
   product_name VARCHAR(500) NOT NULL,
+  shop_name VARCHAR(255),
   contract_number VARCHAR(50),
   cost_price DECIMAL(10,2),
   sell_date DATE,

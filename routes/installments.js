@@ -42,7 +42,9 @@ async function generateUniqueContractNumber() {
     console.error('❌ Error generating contract number:', error);
     // Fallback: use timestamp
     const timestamp = Date.now().toString().slice(-8);
-    return `CT${timestamp}`;
+    const fallbackContractNumber = `CT${timestamp}`;
+    console.log('🔄 Using fallback contract number:', fallbackContractNumber);
+    return fallbackContractNumber;
   }
 }
 

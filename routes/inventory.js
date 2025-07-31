@@ -272,22 +272,79 @@ router.put('/:id', async (req, res) => {
       });
     }
     
+    // Build dynamic SQL query to only update provided fields
+    let updateFields = [];
+    let params = [];
+    
+    if (sequence !== undefined) {
+      updateFields.push('sequence = ?');
+      params.push(sequence);
+    }
+    if (receive_date !== undefined) {
+      updateFields.push('receive_date = ?');
+      params.push(receive_date);
+    }
+    if (product_code !== undefined) {
+      updateFields.push('product_code = ?');
+      params.push(product_code);
+    }
+    if (product_name !== undefined) {
+      updateFields.push('product_name = ?');
+      params.push(product_name);
+    }
+    if (shop_name !== undefined) {
+      updateFields.push('shop_name = ?');
+      params.push(shop_name);
+    }
+    if (contract_number !== undefined) {
+      updateFields.push('contract_number = ?');
+      params.push(contract_number);
+    }
+    if (cost_price !== undefined) {
+      updateFields.push('cost_price = ?');
+      params.push(cost_price || 0);
+    }
+    if (sell_date !== undefined) {
+      updateFields.push('sell_date = ?');
+      params.push(sell_date);
+    }
+    if (selling_cost !== undefined) {
+      updateFields.push('selling_cost = ?');
+      params.push(selling_cost || 0);
+    }
+    if (remaining_quantity1 !== undefined) {
+      updateFields.push('remaining_quantity1 = ?');
+      params.push(remaining_quantity1 || 1);
+    }
+    if (received_quantity !== undefined) {
+      updateFields.push('received_quantity = ?');
+      params.push(received_quantity || 1);
+    }
+    if (sold_quantity !== undefined) {
+      updateFields.push('sold_quantity = ?');
+      params.push(sold_quantity || 0);
+    }
+    if (remaining_quantity2 !== undefined) {
+      updateFields.push('remaining_quantity2 = ?');
+      params.push(remaining_quantity2 || 1);
+    }
+    if (remarks !== undefined) {
+      updateFields.push('remarks = ?');
+      params.push(remarks);
+    }
+    if (status !== undefined) {
+      updateFields.push('status = ?');
+      params.push(status || 'active');
+    }
+    
+    updateFields.push('updated_at = NOW()');
+    params.push(id);
+    
     const sqlQuery = `
       UPDATE inventory 
-      SET 
-        sequence = ?, receive_date = ?, product_code = ?, product_name = ?, shop_name = ?,
-        contract_number = ?, cost_price = ?, sell_date = ?, selling_cost = ?,
-        remaining_quantity1 = ?, received_quantity = ?, sold_quantity = ?,
-        remaining_quantity2 = ?, remarks = ?, status = ?, updated_at = NOW()
+      SET ${updateFields.join(', ')}
       WHERE id = ?
     `;
-    
-    const params = [
-      sequence || null, receive_date || null, product_code || null, product_name, shop_name || null,
-      contract_number || null, cost_price || 0, sell_date || null, selling_cost || 0,
-      remaining_quantity1 || 1, received_quantity || 1, sold_quantity || 0,
-      remaining_quantity2 || 1, remarks || null, status || 'active', id
-    ];
     
     try {
       const result = await query(sqlQuery, params);

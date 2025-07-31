@@ -14,6 +14,7 @@ router.get('/', async (req, res) => {
         i.receive_date,
         i.product_code,
         i.product_name,
+        i.shop_name,
         i.contract_number,
         i.cost_price,
         i.sell_date,
@@ -49,11 +50,12 @@ router.get('/', async (req, res) => {
       sqlQuery += ` AND (
         i.product_name LIKE ? OR 
         i.product_code LIKE ? OR 
+        i.shop_name LIKE ? OR
         i.contract_number LIKE ? OR
         i.remarks LIKE ?
       )`;
       const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
     
     // Get total count for pagination
@@ -110,6 +112,7 @@ router.get('/:id', async (req, res) => {
         i.receive_date,
         i.product_code,
         i.product_name,
+        i.shop_name,
         i.contract_number,
         i.cost_price,
         i.sell_date,
@@ -162,7 +165,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { 
-      sequence, receive_date, product_code, product_name, contract_number,
+      sequence, receive_date, product_code, product_name, shop_name, contract_number,
       cost_price, sell_date, selling_cost, remaining_quantity1,
       received_quantity, sold_quantity, remaining_quantity2, remarks, branch_id
     } = req.body;
@@ -185,15 +188,15 @@ router.post('/', async (req, res) => {
     
     const sqlQuery = `
       INSERT INTO inventory (
-        sequence, receive_date, product_code, product_name, contract_number,
+        sequence, receive_date, product_code, product_name, shop_name, contract_number,
         cost_price, sell_date, selling_cost, remaining_quantity1,
         received_quantity, sold_quantity, remaining_quantity2, remarks, branch_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
       finalSequence, receive_date || null, product_code || null, product_name, 
-      contract_number || null, cost_price || 0, sell_date || null, selling_cost || 0,
+      shop_name || null, contract_number || null, cost_price || 0, sell_date || null, selling_cost || 0,
       remaining_quantity1 || 1, received_quantity || 1, sold_quantity || 0,
       remaining_quantity2 || 1, remarks || null, branch_id
     ];
@@ -256,7 +259,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      sequence, receive_date, product_code, product_name, contract_number,
+      sequence, receive_date, product_code, product_name, shop_name, contract_number,
       cost_price, sell_date, selling_cost, remaining_quantity1,
       received_quantity, sold_quantity, remaining_quantity2, remarks, status
     } = req.body;
@@ -272,7 +275,7 @@ router.put('/:id', async (req, res) => {
     const sqlQuery = `
       UPDATE inventory 
       SET 
-        sequence = ?, receive_date = ?, product_code = ?, product_name = ?,
+        sequence = ?, receive_date = ?, product_code = ?, product_name = ?, shop_name = ?,
         contract_number = ?, cost_price = ?, sell_date = ?, selling_cost = ?,
         remaining_quantity1 = ?, received_quantity = ?, sold_quantity = ?,
         remaining_quantity2 = ?, remarks = ?, status = ?, updated_at = NOW()
@@ -280,7 +283,7 @@ router.put('/:id', async (req, res) => {
     `;
     
     const params = [
-      sequence || null, receive_date || null, product_code || null, product_name,
+      sequence || null, receive_date || null, product_code || null, product_name, shop_name || null,
       contract_number || null, cost_price || 0, sell_date || null, selling_cost || 0,
       remaining_quantity1 || 1, received_quantity || 1, sold_quantity || 0,
       remaining_quantity2 || 1, remarks || null, status || 'active', id
@@ -303,6 +306,7 @@ router.put('/:id', async (req, res) => {
           i.receive_date,
           i.product_code,
           i.product_name,
+          i.shop_name,
           i.contract_number,
           i.cost_price,
           i.sell_date,

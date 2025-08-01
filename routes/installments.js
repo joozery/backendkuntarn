@@ -1426,20 +1426,18 @@ router.put('/:id/down-payment', async (req, res) => {
 
     const updateData = {
       down_payment: parseFloat(amount) || 0,
-      contract_date: paymentDate,
-      notes: `ใบเสร็จ: ${receiptNumber || '-'}, สถานะ: ${status || 'ปกติ'}, ส่วนลด: ${discount || 'ไม่มีส่วนลด'}`
+      contract_date: paymentDate
     };
 
     const sqlQuery = `
       UPDATE installments 
-      SET down_payment = ?, contract_date = ?, notes = ?, updated_at = NOW()
+      SET down_payment = ?, contract_date = ?, updated_at = NOW()
       WHERE id = ?
     `;
 
     await query(sqlQuery, [
       updateData.down_payment,
       updateData.contract_date,
-      updateData.notes,
       id
     ]);
 
@@ -1452,7 +1450,6 @@ router.put('/:id/down-payment', async (req, res) => {
         i.down_payment as downPayment,
         i.monthly_payment as monthlyPayment,
         i.months,
-        i.notes,
         i.updated_at as updatedAt
       FROM installments i
       WHERE i.id = ?
@@ -1514,13 +1511,12 @@ router.put('/:id', async (req, res) => {
         down_payment: plan.downPayment || 0,
         monthly_payment: plan.monthlyPayment || 0,
         months: plan.months || 12,
-        contract_date: contractDate,
-        notes: notes || null
+        contract_date: contractDate
       };
 
       const sqlQuery = `
         UPDATE installments 
-        SET down_payment = ?, monthly_payment = ?, months = ?, contract_date = ?, notes = ?, updated_at = NOW()
+        SET down_payment = ?, monthly_payment = ?, months = ?, contract_date = ?, updated_at = NOW()
         WHERE id = ?
       `;
 
@@ -1529,7 +1525,6 @@ router.put('/:id', async (req, res) => {
         updateData.monthly_payment,
         updateData.months,
         updateData.contract_date,
-        updateData.notes,
         id
       ]);
 
@@ -1542,7 +1537,6 @@ router.put('/:id', async (req, res) => {
           i.down_payment as downPayment,
           i.monthly_payment as monthlyPayment,
           i.months,
-          i.notes,
           i.updated_at as updatedAt
         FROM installments i
         WHERE i.id = ?

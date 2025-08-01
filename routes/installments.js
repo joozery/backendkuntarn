@@ -528,6 +528,7 @@ router.get('/:id/payments', async (req, res) => {
         p.due_date as dueDate,
         p.status,
         p.notes,
+        p.receipt_number as receiptNumber,
         p.created_at as createdAt,
         pc.checker_id as checkerId,
         ch.name as checkerName,
@@ -737,9 +738,9 @@ router.post('/:id/payments', async (req, res) => {
 router.put('/:id/payments/:paymentId', async (req, res) => {
   try {
     const { id, paymentId } = req.params;
-    const { amount, payment_date, due_date, status, notes } = req.body;
+    const { amount, payment_date, due_date, status, notes, receipt_number } = req.body;
     
-    console.log('🔍 PUT payment request:', { id, paymentId, amount, payment_date, due_date, status, notes });
+    console.log('🔍 PUT payment request:', { id, paymentId, amount, payment_date, due_date, status, notes, receipt_number });
     
     // ฟังก์ชันแปลงวันที่ให้ถูกต้อง
     function convertDateFormat(dateString) {
@@ -790,11 +791,11 @@ router.put('/:id/payments/:paymentId', async (req, res) => {
     
     const sqlQuery = `
       UPDATE payments 
-      SET amount = ?, payment_date = ?, due_date = ?, status = ?, notes = ?, updated_at = NOW()
+      SET amount = ?, payment_date = ?, due_date = ?, status = ?, notes = ?, receipt_number = ?, updated_at = NOW()
       WHERE id = ? AND installment_id = ?
     `;
     
-    const params = [finalAmount, finalPaymentDate, finalDueDate, status, notes, paymentId, id];
+    const params = [finalAmount, finalPaymentDate, finalDueDate, status, notes, receipt_number, paymentId, id];
     
     const result = await query(sqlQuery, params);
     

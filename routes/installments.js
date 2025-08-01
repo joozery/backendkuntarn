@@ -1416,6 +1416,70 @@ router.put('/payments/:id/collector', async (req, res) => {
   }
 });
 
+// PUT /api/installments/:id/down-payment - Update down payment
+router.put('/:id/down-payment', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, paymentDate, receiptNumber, status, discount } = req.body;
+
+    console.log('🔍 Updating down payment:', { id, amount, paymentDate, receiptNumber, status, discount });
+
+    const updateData = {
+      down_payment: parseFloat(amount) || 0,
+      contract_date: paymentDate,
+      notes: `ใบเสร็จ: ${receiptNumber || '-'}, สถานะ: ${status || 'ปกติ'}, ส่วนลด: ${discount || 'ไม่มีส่วนลด'}`
+    };
+
+    const sqlQuery = `
+      UPDATE installments 
+      SET down_payment = ?, contract_date = ?, notes = ?, updated_at = NOW()
+      WHERE id = ?
+    `;
+
+    await query(sqlQuery, [
+      updateData.down_payment,
+      updateData.contract_date,
+      updateData.notes,
+      id
+    ]);
+
+    // Get the updated installment
+    const installmentQuery = `
+      SELECT 
+        i.id,
+        i.contract_number as contractNumber,
+        i.contract_date as contractDate,
+        i.down_payment as downPayment,
+        i.monthly_payment as monthlyPayment,
+        i.months,
+        i.notes,
+        i.updated_at as updatedAt
+      FROM installments i
+      WHERE i.id = ?
+    `;
+
+    const installment = await query(installmentQuery, [id]);
+
+    if (installment.length === 0) {
+      return res.status(404).json({ 
+        error: 'Installment not found' 
+      });
+    }
+
+    res.json({
+      success: true,
+      data: installment[0],
+      message: 'Down payment updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating down payment:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
+});
+
 // PUT /api/installments/:id - Update installment
 router.put('/:id', async (req, res) => {
   try {
@@ -1438,8 +1502,69 @@ router.put('/:id', async (req, res) => {
       customerDetails,
       productDetails,
       guarantorDetails,
-      plan
+      plan,
+      notes
     } = req.body;
+
+        // ถ้ามีการส่ง plan และ contractDate มา ให้อัปเดตเฉพาะข้อมูลเหล่านี้
+    if (plan && contractDate) {
+      console.log('🔍 Updating installment with plan data:', { id, plan, contractDate });
+      
+      const updateData = {
+        down_payment: plan.downPayment || 0,
+        monthly_payment: plan.monthlyPayment || 0,
+        months: plan.months || 12,
+        contract_date: contractDate,
+        notes: notes || null
+      };
+
+      const sqlQuery = `
+        UPDATE installments 
+        SET down_payment = ?, monthly_payment = ?, months = ?, contract_date = ?, notes = ?, updated_at = NOW()
+        WHERE id = ?
+      `;
+
+      await query(sqlQuery, [
+        updateData.down_payment,
+        updateData.monthly_payment,
+        updateData.months,
+        updateData.contract_date,
+        updateData.notes,
+        id
+      ]);
+
+      // Get the updated installment
+      const installmentQuery = `
+        SELECT 
+          i.id,
+          i.contract_number as contractNumber,
+          i.contract_date as contractDate,
+          i.down_payment as downPayment,
+          i.monthly_payment as monthlyPayment,
+          i.months,
+          i.notes,
+          i.updated_at as updatedAt
+        FROM installments i
+        WHERE i.id = ?
+      `;
+
+      const installment = await query(installmentQuery, [id]);
+
+      if (installment.length === 0) {
+        return res.status(404).json({ 
+          error: 'Installment not found' 
+        });
+      }
+
+      res.json({
+        success: true,
+        data: installment[0],
+        message: 'Installment updated successfully'
+      });
+      return;
+    }
+
+    // สำหรับการอัปเดตข้อมูลอื่นๆ (ไม่ใช่เงินดาวน์)
     
     // Extract customer details
     const customerTitle = customerDetails?.title || null;
@@ -1453,6 +1578,10 @@ router.put('/:id', async (req, res) => {
     const customerPhone2 = customerDetails?.phone2 || null;
     const customerPhone3 = customerDetails?.phone3 || null;
     const customerEmail = customerDetails?.email || null;
+    const customerIdCard = customerDetails?.idCard || null;
+    const customerName = customerDetails?.name || null;
+    const customerSurname = customerDetails?.surname || null;
+    const customerNickname = customerDetails?.nickname || null;
     
     // Extract guarantor details
     const guarantorIdValue = guarantorDetails?.id || null;

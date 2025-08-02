@@ -1066,10 +1066,17 @@ router.post('/', async (req, res) => {
       return value || '';
     }
     
+    // Helper function to truncate line field to max 10 characters
+    function safeLine(value) {
+      if (!value) return '';
+      // Truncate to 10 characters max
+      return value.toString().substring(0, 10);
+    }
+    
     const params = [
       finalContractNumber, contractDate, customerId, productId, productName, totalAmount,
       finalMonthlyPayment, remainingAmount, installmentPeriod, startDate,
-      endDate, branchId, salespersonId, inspectorId, line,
+      endDate, branchId, salespersonId, inspectorId, safeLine(line),
       safeString(customerTitle), customerAge, safeString(customerMoo), safeString(customerRoad), safeString(customerSubdistrict),
       safeString(customerDistrict), safeString(customerProvince), safeString(customerPhone1), safeString(customerPhone2), safeString(customerPhone3), safeString(customerEmail),
       safeString(customerIdCard), safeString(customerName), safeString(customerSurname), safeString(customerNickname),

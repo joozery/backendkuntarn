@@ -11,7 +11,8 @@ router.get('/', async (req, res) => {
       SELECT 
         c.*,
         b.name as branch_name,
-        ch.full_name as checker_name
+        ch.full_name as checker_name,
+        COALESCE(c.phone1, c.phone2, c.phone3, c.phone, '') as primary_phone
       FROM customers c
       LEFT JOIN branches b ON c.branch_id = b.id
       LEFT JOIN checkers ch ON c.checker_id = ch.id
@@ -80,7 +81,8 @@ router.get('/:id', async (req, res) => {
       SELECT 
         c.*,
         b.name as branch_name,
-        ch.full_name as checker_name
+        ch.full_name as checker_name,
+        COALESCE(c.phone1, c.phone2, c.phone3, c.phone, '') as primary_phone
       FROM customers c
       LEFT JOIN branches b ON c.branch_id = b.id
       LEFT JOIN checkers ch ON c.checker_id = ch.id
@@ -318,6 +320,7 @@ router.get('/checker/:checkerId', async (req, res) => {
         c.*,
         b.name as branch_name,
         ch.full_name as checker_name,
+        COALESCE(c.phone1, c.phone2, c.phone3, c.phone, '') as primary_phone,
         COUNT(i.id) as contract_count,
         SUM(i.total_amount) as total_contracts_amount
       FROM customers c

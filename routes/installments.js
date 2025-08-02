@@ -1061,18 +1061,23 @@ router.post('/', async (req, res) => {
     
     const finalCollectionDate = convertDateFormat(collectionDate);
     
+    // Helper function to convert null/undefined to empty string for string fields
+    function safeString(value) {
+      return value || '';
+    }
+    
     const params = [
       finalContractNumber, contractDate, customerId, productId, productName, totalAmount,
       finalMonthlyPayment, remainingAmount, installmentPeriod, startDate,
       endDate, branchId, salespersonId, inspectorId, line,
-      customerTitle, customerAge, customerMoo, customerRoad, customerSubdistrict,
-      customerDistrict, customerProvince, customerPhone1, customerPhone2, customerPhone3, customerEmail,
-      customerIdCard, customerName, customerSurname, customerNickname,
-      guarantorIdValue, guarantorTitle, guarantorName, guarantorSurname, guarantorNickname,
-      guarantorAge, guarantorIdCard, guarantorAddress, guarantorMoo, guarantorRoad,
-      guarantorSubdistrict, guarantorDistrict, guarantorProvince, guarantorPhone1,
-      guarantorPhone2, guarantorPhone3, guarantorEmail,
-      productDescription, productCategory, productModel, productSerialNumber, costPrice || 0,
+      safeString(customerTitle), customerAge, safeString(customerMoo), safeString(customerRoad), safeString(customerSubdistrict),
+      safeString(customerDistrict), safeString(customerProvince), safeString(customerPhone1), safeString(customerPhone2), safeString(customerPhone3), safeString(customerEmail),
+      safeString(customerIdCard), safeString(customerName), safeString(customerSurname), safeString(customerNickname),
+      guarantorIdValue, safeString(guarantorTitle), safeString(guarantorName), safeString(guarantorSurname), safeString(guarantorNickname),
+      guarantorAge, safeString(guarantorIdCard), safeString(guarantorAddress), safeString(guarantorMoo), safeString(guarantorRoad),
+      safeString(guarantorSubdistrict), safeString(guarantorDistrict), safeString(guarantorProvince), safeString(guarantorPhone1),
+      safeString(guarantorPhone2), safeString(guarantorPhone3), safeString(guarantorEmail),
+      safeString(productDescription), safeString(productCategory), safeString(productModel), safeString(productSerialNumber), costPrice || 0,
       finalDownPayment, finalMonthlyPayment, finalMonths, finalCollectionDate
     ];
     

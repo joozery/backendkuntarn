@@ -21,8 +21,10 @@ const employeesRoutes = require('./routes/employees');
 const inventoryRoutes = require('./routes/inventory');
 const collectorsRoutes = require('./routes/collectors');
 const adminUsersRoutes = require('./routes/adminUsers');
+const authRoutes = require('./routes/auth');
 
 // Use routes
+app.use('/api/auth', authRoutes);
 app.use('/api/branches', branchesRoutes);
 app.use('/api/checkers', checkersRoutes);
 app.use('/api/customers', customersRoutes);

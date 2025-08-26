@@ -6,8 +6,47 @@ const { query } = require('../db/db');
 router.get('/', async (req, res) => {
   try {
     const { branchId, search, status, page = 1, limit = 15 } = req.query;
-    
-    let sqlQuery = `
+
+    // Build WHERE clause once, reuse for count and data queries
+    let whereClause = ' WHERE 1=1';
+    const whereParams = [];
+
+    if (branchId) {
+      whereClause += ' AND i.branch_id = ?';
+      whereParams.push(branchId);
+    }
+
+    if (status && status !== 'all') {
+      whereClause += ' AND i.status = ?';
+      whereParams.push(status);
+    }
+
+    if (search) {
+      const searchTerm = `%${search}%`;
+      whereClause += ` AND (
+        i.product_name LIKE ? OR 
+        i.product_code LIKE ? OR 
+        i.shop_name LIKE ? OR
+        i.contract_number LIKE ? OR
+        i.remarks LIKE ?
+      )`;
+      whereParams.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    // Count query (reliable, without regex replace)
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM inventory i
+      LEFT JOIN branches b ON i.branch_id = b.id
+      ${whereClause}
+    `;
+    const countResult = await query(countQuery, whereParams);
+    const totalItems = (countResult && countResult[0] && countResult[0].total) ? Number(countResult[0].total) : 0;
+    const totalPages = Math.ceil(totalItems / Number(limit || 15)) || 0;
+    const offset = (Number(page || 1) - 1) * Number(limit || 15);
+
+    // Data query
+    const dataQuery = `
       SELECT 
         i.id,
         i.sequence,
@@ -31,57 +70,25 @@ router.get('/', async (req, res) => {
         b.name as branch_name
       FROM inventory i
       LEFT JOIN branches b ON i.branch_id = b.id
-      WHERE 1=1
+      ${whereClause}
+      ORDER BY i.sequence DESC, i.created_at DESC
+      LIMIT ? OFFSET ?
     `;
-    
-    const params = [];
-    
-    if (branchId) {
-      sqlQuery += ' AND i.branch_id = ?';
-      params.push(branchId);
-    }
-    
-    if (status && status !== 'all') {
-      sqlQuery += ' AND i.status = ?';
-      params.push(status);
-    }
-    
-    if (search) {
-      sqlQuery += ` AND (
-        i.product_name LIKE ? OR 
-        i.product_code LIKE ? OR 
-        i.shop_name LIKE ? OR
-        i.contract_number LIKE ? OR
-        i.remarks LIKE ?
-      )`;
-      const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
-    }
-    
-    // Get total count for pagination
-    const countQuery = sqlQuery.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
-    const countResult = await query(countQuery, params);
-    const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
-    const offset = (page - 1) * limit;
-    
-    // Add pagination and ordering
-    sqlQuery += ' ORDER BY i.sequence DESC, i.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), offset);
-    
+    const dataParams = [...whereParams, parseInt(limit), offset];
+
     try {
-      const results = await query(sqlQuery, params);
+      const results = await query(dataQuery, dataParams);
       
       res.json({
         success: true,
         data: results,
         pagination: {
           currentPage: parseInt(page),
-          totalPages,
-          totalItems,
+          totalPages: Number.isFinite(totalPages) ? totalPages : 0,
+          totalItems: Number.isFinite(totalItems) ? totalItems : 0,
           itemsPerPage: parseInt(limit),
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1
+          hasNextPage: Number(page) < totalPages,
+          hasPrevPage: Number(page) > 1
         }
       });
     } catch (err) {

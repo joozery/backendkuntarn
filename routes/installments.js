@@ -378,6 +378,7 @@ router.get('/:id', async (req, res) => {
         i.branch_id as branchId,
         i.salesperson_id as salespersonId,
         i.inspector_id as inspectorId,
+        i.collector_id as collectorId,
         i.line,
         i.customer_title as customerTitle,
         i.customer_age as customerAge,
@@ -441,6 +442,10 @@ router.get('/:id', async (req, res) => {
     
     const results = await query(sqlQuery, [id]);
     console.log('🔍 Query results for id', id, ':', results.length, 'records');
+    console.log('🔍 Raw result data:', results[0]);
+    console.log('🔍 Product ID from database:', results[0]?.productId);
+    console.log('🔍 Collector ID from database:', results[0]?.collectorId);
+    console.log('🔍 Line from database:', results[0]?.line);
     
     if (results.length === 0) {
       console.log('❌ No installment found for id:', id);
@@ -498,6 +503,11 @@ router.get('/:id', async (req, res) => {
         months: results[0].months
       }
     };
+    
+    console.log('🔍 Final response data:', result);
+    console.log('🔍 Final productId:', result.productId);
+    console.log('🔍 Final collectorId:', result.collectorId);
+    console.log('🔍 Final line:', result.line);
     
     res.json({
       success: true,

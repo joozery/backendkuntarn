@@ -71,7 +71,7 @@ router.get('/', async (req, res) => {
       FROM inventory i
       LEFT JOIN branches b ON i.branch_id = b.id
       ${whereClause}
-      ORDER BY i.sequence DESC, i.created_at DESC
+      ORDER BY i.sequence ASC, i.created_at ASC
       LIMIT ? OFFSET ?
     `;
     const dataParams = [...whereParams, parseInt(limit), offset];

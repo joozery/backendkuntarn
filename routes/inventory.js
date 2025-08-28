@@ -5,7 +5,7 @@ const { query } = require('../db/db');
 // GET /api/inventory - Get all inventory items
 router.get('/', async (req, res) => {
   try {
-    const { branchId, search, status, page = 1, limit = 15 } = req.query;
+    const { branchId, search, status, page = 1, limit = 15, getAll = false } = req.query;
 
     // Build WHERE clause once, reuse for count and data queries
     let whereClause = ' WHERE 1=1';
@@ -19,6 +19,9 @@ router.get('/', async (req, res) => {
     if (status && status !== 'all') {
       whereClause += ' AND i.status = ?';
       whereParams.push(status);
+    } else if (getAll === 'true' || getAll === true) {
+      // ถ้า getAll=true ให้ไม่ใช้ default filter เพื่อให้ได้ข้อมูลทั้งหมด
+      console.log('🔍 getAll=true: No default filter applied');
     } else {
       // Default filter: only show active items with stock
       whereClause += ' AND i.status = "active" AND i.remaining_quantity1 > 0';
@@ -45,8 +48,17 @@ router.get('/', async (req, res) => {
     `;
     const countResult = await query(countQuery, whereParams);
     const totalItems = (countResult && countResult[0] && countResult[0].total) ? Number(countResult[0].total) : 0;
-    const totalPages = Math.ceil(totalItems / Number(limit || 15)) || 0;
-    const offset = (Number(page || 1) - 1) * Number(limit || 15);
+    
+    // ถ้า getAll=true ให้ส่งข้อมูลทั้งหมดโดยไม่ใช้ pagination
+    let totalPages, offset;
+    if (getAll === 'true' || getAll === true) {
+      totalPages = 1;
+      offset = 0;
+      limit = totalItems; // ใช้ limit เท่ากับจำนวนข้อมูลทั้งหมด
+    } else {
+      totalPages = Math.ceil(totalItems / Number(limit || 15)) || 0;
+      offset = (Number(page || 1) - 1) * Number(limit || 15);
+    }
 
     // Data query
     const dataQuery = `
@@ -81,6 +93,13 @@ router.get('/', async (req, res) => {
 
     try {
       const results = await query(dataQuery, dataParams);
+      
+      console.log('🔍 Inventory API response debug:');
+      console.log('  - Query params:', { branchId, search, status, page, limit, getAll });
+      console.log('  - Total items in DB:', totalItems);
+      console.log('  - Items returned:', results.length);
+      console.log('  - Pagination:', { totalPages, offset, limit });
+      console.log('  - getAll parameter:', getAll);
       
       res.json({
         success: true,

@@ -228,7 +228,7 @@ router.get('/', async (req, res) => {
         c.full_name as customerFullName,
         c.phone as customerPhone,
         c.address as customerAddress,
-        inv.product_name as productName,
+        inv.product_name as inventoryProductName,
         inv.cost_price as productPrice,
         b.name as branchName,
         e.name as salespersonName,
@@ -276,9 +276,9 @@ router.get('/', async (req, res) => {
     }
     
     if (search) {
-      sqlQuery += ' AND (i.contract_number LIKE ? OR c.full_name LIKE ? OR inv.product_name LIKE ?)';
+      sqlQuery += ' AND (i.contract_number LIKE ? OR c.full_name LIKE ? OR i.product_name LIKE ? OR inv.product_name LIKE ?)';
       const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
     
     sqlQuery += ' ORDER BY i.created_at DESC';
@@ -338,7 +338,10 @@ router.get('/', async (req, res) => {
         monthlyPayment: result.monthlyPayment,
         months: result.months,
         collectionDate: result.collectionDate
-      }
+      },
+      // Ensure line and collector_id are included
+      line: result.line || '',
+      collectorId: result.collectorId || ''
     }));
     
     res.json({
@@ -426,7 +429,7 @@ router.get('/:id', async (req, res) => {
         c.address as customerAddress,
         c.nickname as customerNickname,
         c.id_card as customerIdCard,
-        inv.product_name as productName,
+        inv.product_name as inventoryProductName,
         inv.cost_price as productPrice,
         b.name as branchName,
         e.name as salespersonName,
@@ -457,6 +460,9 @@ router.get('/:id', async (req, res) => {
     // Build structured objects from individual fields
     const result = {
       ...results[0],
+      // Ensure line and collector_id are included
+      line: results[0].line || '',
+      collectorId: results[0].collectorId || '',
       customerDetails: {
         title: results[0].customerTitle,
         age: results[0].customerAge,
@@ -500,7 +506,8 @@ router.get('/:id', async (req, res) => {
       plan: {
         downPayment: results[0].downPayment,
         monthlyPayment: results[0].monthlyPayment,
-        months: results[0].months
+        months: results[0].months,
+        collectionDate: results[0].collectionDate
       }
     };
     

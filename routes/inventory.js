@@ -19,6 +19,9 @@ router.get('/', async (req, res) => {
     if (status && status !== 'all') {
       whereClause += ' AND i.status = ?';
       whereParams.push(status);
+    } else {
+      // Default filter: only show active items with stock
+      whereClause += ' AND i.status = "active" AND i.remaining_quantity1 > 0';
     }
 
     if (search) {

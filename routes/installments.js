@@ -1470,6 +1470,34 @@ router.put('/:id/down-payment', async (req, res) => {
       id
     ]);
 
+    // Update the corresponding first payment row (เงินดาวน์/งวดแรก) with receipt number and payment date
+    try {
+      // Find the first payment that represents down payment
+      const selectPaymentSql = `
+        SELECT id FROM payments 
+        WHERE installment_id = ? AND (notes LIKE '%เงินดาวน์%' OR notes LIKE '%งวดแรก%')
+        ORDER BY due_date ASC, id ASC
+        LIMIT 1
+      `;
+      const paymentRows = await query(selectPaymentSql, [id]);
+
+      if (paymentRows.length > 0) {
+        const paymentId = paymentRows[0].id;
+        const updatePaymentSql = `
+          UPDATE payments
+          SET payment_date = ?, status = 'paid', receipt_number = ?, updated_at = NOW()
+          WHERE id = ?
+        `;
+        await query(updatePaymentSql, [paymentDate || null, receiptNumber || null, paymentId]);
+        console.log('✅ Updated down payment receipt on payments.id:', paymentId);
+      } else {
+        console.log('⚠️ No down payment row found in payments to update receipt number for installment:', id);
+      }
+    } catch (dpErr) {
+      console.error('❌ Error updating receipt on down payment row:', dpErr);
+      // Do not fail the whole request if this secondary update fails
+    }
+
     // Get the updated installment
     const installmentQuery = `
       SELECT 

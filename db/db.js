@@ -10,7 +10,10 @@ const dbConfig = {
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  connectTimeout: 10000, // 10 seconds
+  acquireTimeout: 10000, // 10 seconds
+  timeout: 10000 // 10 seconds for queries
 };
 
 // Create connection pool
@@ -24,13 +27,15 @@ pool.getConnection((err, connection) => {
   if (err) {
     console.error('❌ Database connection failed:', err.message);
     if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-      console.error('Access denied. Please check your database credentials.');
+      console.error('⚠️  Access denied. Please check your database credentials or IP whitelist.');
+      console.error('⚠️  Server will continue running but database operations will fail.');
     } else if (err.code === 'ECONNREFUSED') {
       console.error('Connection refused. Please check if MySQL server is running.');
     } else if (err.code === 'ER_BAD_DB_ERROR') {
       console.error('Database does not exist. Please create the database first.');
     }
-    process.exit(1);
+    // Don't exit - allow server to run for health checks
+    console.log('⚠️  Server running in degraded mode (no database connection)');
   } else {
     console.log('✅ Database connected successfully!');
     connection.release();

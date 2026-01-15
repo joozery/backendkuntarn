@@ -5,7 +5,8 @@ const { query } = require('../db/db');
 // GET /api/inventory - Get all inventory items
 router.get('/', async (req, res) => {
   try {
-    const { branchId, search, status, page = 1, limit = 15, getAll = false } = req.query;
+    const { branchId, search, status, page = 1, getAll = false } = req.query;
+    let limit = req.query.limit || 15;  // ใช้ let เพื่อให้สามารถกำหนดค่าใหม่ได้เมื่อ getAll=true
 
     // Build WHERE clause once, reuse for count and data queries
     let whereClause = ' WHERE 1=1';
@@ -48,7 +49,7 @@ router.get('/', async (req, res) => {
     `;
     const countResult = await query(countQuery, whereParams);
     const totalItems = (countResult && countResult[0] && countResult[0].total) ? Number(countResult[0].total) : 0;
-    
+
     // ถ้า getAll=true ให้ส่งข้อมูลทั้งหมดโดยไม่ใช้ pagination
     let totalPages, offset;
     if (getAll === 'true' || getAll === true) {
@@ -82,7 +83,8 @@ router.get('/', async (req, res) => {
         i.branch_id,
         i.created_at,
         i.updated_at,
-        b.name as branch_name
+        b.name as branch_name,
+        i.id as product_id  -- เพิ่ม product_id เพื่อเชื่อมต่อกับ installments
       FROM inventory i
       LEFT JOIN branches b ON i.branch_id = b.id
       ${whereClause}
@@ -93,14 +95,14 @@ router.get('/', async (req, res) => {
 
     try {
       const results = await query(dataQuery, dataParams);
-      
+
       console.log('🔍 Inventory API response debug:');
       console.log('  - Query params:', { branchId, search, status, page, limit, getAll });
       console.log('  - Total items in DB:', totalItems);
       console.log('  - Items returned:', results.length);
       console.log('  - Pagination:', { totalPages, offset, limit });
       console.log('  - getAll parameter:', getAll);
-      
+
       res.json({
         success: true,
         data: results,
@@ -115,16 +117,16 @@ router.get('/', async (req, res) => {
       });
     } catch (err) {
       console.error('Error fetching inventory:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message 
+      return res.status(500).json({
+        error: 'Database error',
+        message: err.message
       });
     }
   } catch (error) {
     console.error('Error in inventory GET:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Server error',
+      message: error.message
     });
   }
 });
@@ -133,7 +135,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const sqlQuery = `
       SELECT 
         i.id,
@@ -160,32 +162,32 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN branches b ON i.branch_id = b.id
       WHERE i.id = ?
     `;
-    
+
     try {
       const results = await query(sqlQuery, [id]);
-      
+
       if (results.length === 0) {
-        return res.status(404).json({ 
-          error: 'Inventory item not found' 
+        return res.status(404).json({
+          error: 'Inventory item not found'
         });
       }
-      
+
       res.json({
         success: true,
         data: results[0]
       });
     } catch (err) {
       console.error('Error fetching inventory item:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message 
+      return res.status(500).json({
+        error: 'Database error',
+        message: err.message
       });
     }
   } catch (error) {
     console.error('Error in inventory GET by ID:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Server error',
+      message: error.message
     });
   }
 });
@@ -193,12 +195,12 @@ router.get('/:id', async (req, res) => {
 // POST /api/inventory - Create new inventory item
 router.post('/', async (req, res) => {
   try {
-    const { 
+    const {
       sequence, receive_date, product_code, product_name, shop_name, contract_number,
       cost_price, sell_date, selling_cost, remaining_quantity1,
       received_quantity, sold_quantity, remaining_quantity2, remarks, branch_id
     } = req.body;
-    
+
     // Validation
     if (!product_name || !branch_id) {
       return res.status(400).json({
@@ -206,7 +208,7 @@ router.post('/', async (req, res) => {
         message: 'Product name and branch ID are required'
       });
     }
-    
+
     // Get next sequence number if not provided
     let finalSequence = sequence;
     if (!sequence) {
@@ -214,7 +216,7 @@ router.post('/', async (req, res) => {
       const maxSeqResult = await query(maxSeqQuery, [branch_id]);
       finalSequence = (maxSeqResult[0].maxSeq || 0) + 1;
     }
-    
+
     const sqlQuery = `
       INSERT INTO inventory (
         sequence, receive_date, product_code, product_name, shop_name, contract_number,
@@ -222,17 +224,17 @@ router.post('/', async (req, res) => {
         received_quantity, sold_quantity, remaining_quantity2, remarks, branch_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     const params = [
-      finalSequence, receive_date || null, product_code || null, product_name, 
+      finalSequence, receive_date || null, product_code || null, product_name,
       shop_name || null, contract_number || null, cost_price || 0, sell_date || null, selling_cost || 0,
       remaining_quantity1 || 1, received_quantity || 1, sold_quantity || 0,
       remaining_quantity2 || 1, remarks || null, branch_id
     ];
-    
+
     try {
       const result = await query(sqlQuery, params);
-      
+
       // Get the created inventory item
       const getQuery = `
         SELECT 
@@ -259,9 +261,9 @@ router.post('/', async (req, res) => {
         LEFT JOIN branches b ON i.branch_id = b.id
         WHERE i.id = ?
       `;
-      
+
       const results = await query(getQuery, [result.insertId]);
-      
+
       res.status(201).json({
         success: true,
         message: 'Inventory item created successfully',
@@ -269,16 +271,16 @@ router.post('/', async (req, res) => {
       });
     } catch (err) {
       console.error('Error creating inventory item:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message 
+      return res.status(500).json({
+        error: 'Database error',
+        message: err.message
       });
     }
   } catch (error) {
     console.error('Error in inventory POST:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Server error',
+      message: error.message
     });
   }
 });
@@ -287,12 +289,12 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
+    const {
       sequence, receive_date, product_code, product_name, shop_name, contract_number,
       cost_price, sell_date, selling_cost, remaining_quantity1,
       received_quantity, sold_quantity, remaining_quantity2, remarks, status
     } = req.body;
-    
+
     // Validation
     if (!product_name) {
       return res.status(400).json({
@@ -300,11 +302,11 @@ router.put('/:id', async (req, res) => {
         message: 'Product name is required'
       });
     }
-    
+
     // Build dynamic SQL query to only update provided fields
     let updateFields = [];
     let params = [];
-    
+
     if (sequence !== undefined) {
       updateFields.push('sequence = ?');
       params.push(sequence);
@@ -365,25 +367,25 @@ router.put('/:id', async (req, res) => {
       updateFields.push('status = ?');
       params.push(status || 'active');
     }
-    
+
     updateFields.push('updated_at = NOW()');
     params.push(id);
-    
+
     const sqlQuery = `
       UPDATE inventory 
       SET ${updateFields.join(', ')}
       WHERE id = ?
     `;
-    
+
     try {
       const result = await query(sqlQuery, params);
-      
+
       if (result.affectedRows === 0) {
-        return res.status(404).json({ 
-          error: 'Inventory item not found' 
+        return res.status(404).json({
+          error: 'Inventory item not found'
         });
       }
-      
+
       // Get the updated inventory item
       const getQuery = `
         SELECT 
@@ -411,9 +413,9 @@ router.put('/:id', async (req, res) => {
         LEFT JOIN branches b ON i.branch_id = b.id
         WHERE i.id = ?
       `;
-      
+
       const results = await query(getQuery, [id]);
-      
+
       res.json({
         success: true,
         message: 'Inventory item updated successfully',
@@ -421,16 +423,16 @@ router.put('/:id', async (req, res) => {
       });
     } catch (err) {
       console.error('Error updating inventory item:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message 
+      return res.status(500).json({
+        error: 'Database error',
+        message: err.message
       });
     }
   } catch (error) {
     console.error('Error in inventory PUT:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Server error',
+      message: error.message
     });
   }
 });
@@ -439,34 +441,34 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const sqlQuery = 'DELETE FROM inventory WHERE id = ?';
-    
+
     try {
       const result = await query(sqlQuery, [id]);
-      
+
       if (result.affectedRows === 0) {
-        return res.status(404).json({ 
-          error: 'Inventory item not found' 
+        return res.status(404).json({
+          error: 'Inventory item not found'
         });
       }
-      
+
       res.json({
         success: true,
         message: 'Inventory item deleted successfully'
       });
     } catch (err) {
       console.error('Error deleting inventory item:', err);
-      return res.status(500).json({ 
-        error: 'Database error', 
-        message: err.message 
+      return res.status(500).json({
+        error: 'Database error',
+        message: err.message
       });
     }
   } catch (error) {
     console.error('Error in inventory DELETE:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Server error',
+      message: error.message
     });
   }
 });

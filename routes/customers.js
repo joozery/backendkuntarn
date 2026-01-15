@@ -6,7 +6,7 @@ const { query } = require('../db/db');
 router.get('/', async (req, res) => {
   try {
     const { branchId, checkerId, search, status } = req.query;
-    
+
     let sqlQuery = `
       SELECT 
         c.*,
@@ -18,19 +18,19 @@ router.get('/', async (req, res) => {
       LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE 1=1
     `;
-    
+
     const params = [];
-    
+
     if (branchId) {
       sqlQuery += ' AND c.branch_id = ?';
       params.push(branchId);
     }
-    
+
     if (checkerId) {
       sqlQuery += ' AND c.checker_id = ?';
       params.push(checkerId);
     }
-    
+
     if (search) {
       sqlQuery += ` AND (
         c.code LIKE ? OR 
@@ -47,16 +47,16 @@ router.get('/', async (req, res) => {
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
-    
+
     if (status && status !== 'all') {
       sqlQuery += ' AND c.status = ?';
       params.push(status);
     }
-    
+
     sqlQuery += ' ORDER BY c.created_at DESC';
-    
+
     const results = await query(sqlQuery, params);
-    
+
     res.json({
       success: true,
       data: results,
@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const sqlQuery = `
       SELECT 
         c.*,
@@ -88,16 +88,16 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE c.id = ?
     `;
-    
+
     const results = await query(sqlQuery, [id]);
-    
+
     if (results.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Customer not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: results[0]
@@ -143,7 +143,7 @@ router.post('/', async (req, res) => {
       branchId,
       checkerId
     } = req.body;
-    
+
     const sqlQuery = `
       INSERT INTO customers (
         code, title, name, surname, full_name, nickname, age, id_card, address,
@@ -152,16 +152,16 @@ router.post('/', async (req, res) => {
         status, branch_id, checker_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     const params = [
       code, title || 'นาย', name, surname, fullName, nickname, age, idCard, address,
       moo, road, subdistrict, district, province, phone1, phone2, phone3, email,
       guarantorName, guarantorIdCard, guarantorNickname, guarantorPhone, guarantorAddress,
       status || 'active', branchId, checkerId
     ];
-    
+
     const result = await query(sqlQuery, params);
-    
+
     // Fetch the created customer
     const customerQuery = `
       SELECT 
@@ -173,9 +173,9 @@ router.post('/', async (req, res) => {
       LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE c.id = ?
     `;
-    
+
     const customer = await query(customerQuery, [result.insertId]);
-    
+
     res.status(201).json({
       success: true,
       message: 'Customer created successfully',
@@ -223,7 +223,7 @@ router.put('/:id', async (req, res) => {
       branchId,
       checkerId
     } = req.body;
-    
+
     const sqlQuery = `
       UPDATE customers SET
         code = ?, title = ?, name = ?, surname = ?, full_name = ?, nickname = ?, age = ?,
@@ -233,23 +233,23 @@ router.put('/:id', async (req, res) => {
         status = ?, branch_id = ?, checker_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
-    
+
     const params = [
       code, title, name, surname, fullName, nickname, age, idCard, address,
       moo, road, subdistrict, district, province, phone1, phone2, phone3, email,
       guarantorName, guarantorIdCard, guarantorNickname, guarantorPhone, guarantorAddress,
       status, branchId, checkerId, id
     ];
-    
+
     const result = await query(sqlQuery, params);
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: 'Customer not found'
       });
     }
-    
+
     // Fetch the updated customer
     const customerQuery = `
       SELECT 
@@ -261,9 +261,9 @@ router.put('/:id', async (req, res) => {
       LEFT JOIN checkers ch ON c.checker_id = ch.id
       WHERE c.id = ?
     `;
-    
+
     const customer = await query(customerQuery, [id]);
-    
+
     res.json({
       success: true,
       message: 'Customer updated successfully',
@@ -283,17 +283,17 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const sqlQuery = 'DELETE FROM customers WHERE id = ?';
     const result = await query(sqlQuery, [id]);
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: 'Customer not found'
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Customer deleted successfully'
@@ -313,7 +313,7 @@ router.get('/checker/:checkerId', async (req, res) => {
   try {
     const { checkerId } = req.params;
     const { search, status } = req.query;
-    
+
     // Get customers directly linked to checker
     let sqlQuery = `
       SELECT DISTINCT
@@ -329,9 +329,9 @@ router.get('/checker/:checkerId', async (req, res) => {
       LEFT JOIN installments i ON c.id = i.customer_id
       WHERE c.checker_id = ?
     `;
-    
+
     const params = [checkerId];
-    
+
     if (search) {
       sqlQuery += ` AND (
         c.code LIKE ? OR 
@@ -345,18 +345,18 @@ router.get('/checker/:checkerId', async (req, res) => {
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
-    
+
     if (status && status !== 'all') {
       sqlQuery += ' AND c.status = ?';
       params.push(status);
     }
-    
+
     sqlQuery += ' GROUP BY c.id ORDER BY c.created_at DESC';
-    
+
     const results = await query(sqlQuery, params);
-    
+
     console.log(`🔍 Found ${results.length} customers for checker ${checkerId}`);
-    
+
     res.json({
       success: true,
       data: results,
@@ -377,9 +377,9 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
   try {
     const { checkerId } = req.params;
     const { search, status, page = 1, limit = 25 } = req.query;
-    
+
     console.log('🔍 Getting customers for checker:', checkerId);
-    
+
     // Build the base query
     let sqlQuery = `
       SELECT DISTINCT
@@ -395,10 +395,18 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         c.phone3,
         c.email,
         c.address,
+        c.moo,
+        c.road,
+        c.subdistrict,
+        c.district,
+        c.province,
         c.status,
         MAX(i.guarantor_name) as guarantor_name,
+        MAX(i.guarantor_surname) as guarantor_surname,
         MAX(i.guarantor_id_card) as guarantor_id_card,
         MAX(i.guarantor_nickname) as guarantor_nickname,
+        MAX(i.guarantor_phone1) as guarantor_phone,
+        MAX(i.guarantor_address) as guarantor_address,
         COUNT(i.id) as contract_count,
         SUM(i.total_amount) as total_contracts_amount,
         MAX(i.contract_date) as latest_contract_date,
@@ -407,11 +415,15 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
       INNER JOIN installments i ON c.id = i.customer_id
       WHERE i.inspector_id = ?
     `;
-    
+
     const queryParams = [checkerId];
-    
+
     // Add search filter
     if (search) {
+      const searchTerm = `%${search}%`;
+      const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, ''); // Remove special chars including hyphens
+      const cleanSearchParam = `%${cleanSearch}%`;
+
       sqlQuery += ` AND (
         c.code LIKE ? OR 
         c.name LIKE ? OR 
@@ -419,43 +431,70 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         c.full_name LIKE ? OR 
         c.nickname LIKE ? OR 
         c.id_card LIKE ? OR
-        c.guarantor_name LIKE ? OR
-        c.guarantor_id_card LIKE ? OR
-        c.guarantor_nickname LIKE ?
+        c.phone1 LIKE ? OR
+        c.phone2 LIKE ? OR
+        c.phone3 LIKE ? OR
+        c.address LIKE ? OR
+        c.moo LIKE ? OR
+        c.road LIKE ? OR
+        c.subdistrict LIKE ? OR
+        c.district LIKE ? OR
+        c.province LIKE ? OR
+        i.guarantor_name LIKE ? OR
+        i.guarantor_id_card LIKE ? OR
+        i.guarantor_nickname LIKE ? OR
+        i.guarantor_phone1 LIKE ? OR
+        i.guarantor_address LIKE ? OR
+        i.contract_number LIKE ? OR
+        REPLACE(REPLACE(c.id_card, '-', ''), ' ', '') LIKE ? OR
+        REPLACE(REPLACE(i.guarantor_id_card, '-', ''), ' ', '') LIKE ?
       )`;
-      const searchParam = `%${search}%`;
-      queryParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
+
+      // 21 original fields + 2 normalized fields = 23 params
+      // 21 original fields + 2 normalized fields = 23 params
+      // Use array spread to ensure correct count
+      const standardParams = Array(21).fill(searchTerm);
+      const cleanParams = [cleanSearchParam, cleanSearchParam];
+      queryParams.push(...standardParams, ...cleanParams);
     }
-    
+
     // Add status filter
     if (status && status !== 'all') {
       sqlQuery += ` AND i.status = ?`;
       queryParams.push(status);
     }
-    
+
     // Group by customer
     sqlQuery += ` GROUP BY c.id`;
-    
+
     // Add order by
     sqlQuery += ` ORDER BY c.full_name ASC`;
-    
+
     // Add pagination
     const offset = (page - 1) * limit;
     sqlQuery += ` LIMIT ? OFFSET ?`;
     queryParams.push(parseInt(limit), offset);
-    
-    console.log('🔍 Query:', sqlQuery);
-    console.log('🔍 Params:', queryParams);
-    
+
+    console.log('🔍 [DEBUG] Query:', sqlQuery);
+    console.log('🔍 [DEBUG] Params:', queryParams);
+
     const customers = await query(sqlQuery, queryParams);
-    
-    console.log('🔍 Raw customers data from DB:', customers);
-    console.log('🔍 First customer guarantor data:', customers[0] ? {
+
+    console.log('🔍 [DEBUG] Raw customers data from DB:', customers);
+    console.log('🔍 [DEBUG] First customer guarantor data:', customers[0] ? {
       guarantor_name: customers[0].guarantor_name,
       guarantor_id_card: customers[0].guarantor_id_card,
       guarantor_nickname: customers[0].guarantor_nickname
     } : 'No customers');
-    
+
+    // Debug: Log all contract numbers found
+    if (customers.length > 0) {
+      console.log('🔍 [DEBUG] All contract numbers found:');
+      customers.forEach((item, index) => {
+        console.log(`   ${index + 1}. Customer: ${item.full_name}, Contracts: ${item.contract_numbers}`);
+      });
+    }
+
     // Get total count for pagination
     let countQuery = `
       SELECT COUNT(DISTINCT c.id) as total
@@ -463,10 +502,14 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
       INNER JOIN installments i ON c.id = i.customer_id
       WHERE i.inspector_id = ?
     `;
-    
+
     const countParams = [checkerId];
-    
+
     if (search) {
+      const searchTerm = `%${search}%`;
+      const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, ''); // Remove special chars including hyphens
+      const cleanSearchParam = `%${cleanSearch}%`;
+
       countQuery += ` AND (
         c.code LIKE ? OR 
         c.name LIKE ? OR 
@@ -474,27 +517,45 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
         c.full_name LIKE ? OR 
         c.nickname LIKE ? OR 
         c.id_card LIKE ? OR
-        c.guarantor_name LIKE ? OR
-        c.guarantor_id_card LIKE ? OR
-        c.guarantor_nickname LIKE ?
+        c.phone1 LIKE ? OR
+        c.phone2 LIKE ? OR
+        c.phone3 LIKE ? OR
+        c.address LIKE ? OR
+        c.moo LIKE ? OR
+        c.road LIKE ? OR
+        c.subdistrict LIKE ? OR
+        c.district LIKE ? OR
+        c.province LIKE ? OR
+        i.guarantor_name LIKE ? OR
+        i.guarantor_id_card LIKE ? OR
+        i.guarantor_nickname LIKE ? OR
+        i.guarantor_phone1 LIKE ? OR
+        i.guarantor_address LIKE ? OR
+        i.contract_number LIKE ? OR
+        REPLACE(REPLACE(c.id_card, '-', ''), ' ', '') LIKE ? OR
+        REPLACE(REPLACE(i.guarantor_id_card, '-', ''), ' ', '') LIKE ?
       )`;
-      const searchParam = `%${search}%`;
-      countParams.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
+
+      // 21 original fields + 2 normalized fields = 23 params
+      // Use array spread to ensure correct count
+      const standardParams = Array(21).fill(searchTerm);
+      const cleanParams = [cleanSearchParam, cleanSearchParam];
+      countParams.push(...standardParams, ...cleanParams);
     }
-    
+
     if (status && status !== 'all') {
       countQuery += ` AND i.status = ?`;
       countParams.push(status);
     }
-    
+
     const countResult = await query(countQuery, countParams);
     const total = countResult[0]?.total || 0;
-    
+
     // Get checker info
     const checkerQuery = 'SELECT id, name, surname, full_name FROM checkers WHERE id = ?';
     const checkerResult = await query(checkerQuery, [checkerId]);
     const checker = checkerResult[0];
-    
+
     res.json({
       success: true,
       data: customers,
@@ -507,12 +568,12 @@ router.get('/checker/:checkerId/contracts', async (req, res) => {
       checker,
       message: `Found ${customers.length} customers for checker ${checker?.full_name || checkerId}`
     });
-    
+
   } catch (error) {
     console.error('Error getting customers for checker:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Server error',
+      message: error.message
     });
   }
 });
